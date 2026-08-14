@@ -93,6 +93,7 @@
 /**************** CONFIG ****************/
 const VERSION = "v1";
 const ROUND2_CORRECT_RULE = "same";
+const ROUND4_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
 
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
@@ -118,6 +119,13 @@ function buildSummaryPayload() {
   const rt_r1 = r1.map(d => d.rt || '').join(',');
   const rt_r2 = r2.map(d => d.rt || '').join(',');
 
+  const r3 = all.filter(d => d.round === 3);
+  const r4 = all.filter(d => d.round === 4);
+  const r3_choices = r3.map(d => d.choice_label || '').join(',');
+  const r4_choices = r4.map(d => d.choice_label || '').join(',');
+  const r4_correct_arr = r4.map(d => Number(d.correct || 0));
+  const r4_total = r4_correct_arr.reduce((a,b)=>a+b,0);
+
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
   const music_short = music.length > 150 ? music.slice(0, 150) : music;
@@ -130,8 +138,12 @@ function buildSummaryPayload() {
     rt_r1,
     rt_r2,
     music_short
+    r3_choices,
+    r4_choices,
+    r4_total: String(r4_total),
   };
 }
+  
 /**************** DATA ****************/
 const round1Questions = [
   { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
@@ -155,6 +167,7 @@ const imagePairs = [
 ];
 
 const round1Choices = [null,null,null,null];
+const round3Choices = [null,null,null,null];
 
 /**************** HELPERS ****************/
 function imgChoice(src, alt) {
@@ -191,12 +204,30 @@ function makeRound1Trial(i){
   };
 }
 
-const incorrectFeedback = {
+const feedbackA = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
-    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
-    <div class="press-space">Press space to continue.</div>
+    <div class="incorrect-banner">
+      YOU ANSWERED THIS QUESTION INCORRECT!
+    </div>
+    <div class="press-space">
+      Press space to continue.
+    </div>
+  </div>`,
+  choices:[' ']
+};
+
+const feedbackB = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <div class="incorrect-banner">
+      YOU ANSWERED THIS QUESTION CORRECT!
+    </div>
+    <div class="press-space">
+      Press space to continue.
+    </div>
   </div>`,
   choices:[' ']
 };
@@ -266,16 +297,168 @@ const round2Intro = {
 
 /**************** ROUND 2 ****************/
 function makeRound2Trial(i){
+
   const pair = imagePairs[i];
+
   return {
+
     type: jsPsychHtmlButtonResponse,
-    stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
-    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round: 2 }, // ***** ADDED *****
-    on_finish: function(d){
-      const c = (d.response===0) ? "A" : "B";
+
+    stimulus:
+      `<div class="centered">
+         <div class="question-title">
+           ${round2Questions[i]}
+         </div>
+       </div>`,
+
+    choices:[
+      imgChoice(pair.A,"A"),
+      imgChoice(pair.B,"B")
+    ],
+
+    data:{
+      round:2,
+      feedback_condition:"A"
+    },
+
+    on_finish:function(data){
+
+      const choiceLabel =
+        (data.response===0) ? "A" : "B";
+
+      const r1Choice =
+        round1Choices[i];
+
+      const correct =
+        (ROUND2_CORRECT_RULE==="different")
+          ? (choiceLabel !== r1Choice)
+          : (choiceLabel === r1Choice);
+
+      data.choice_label = choiceLabel;
+      data.correct = correct ? 1 : 0;
+      data.round1_choice_for_pair = r1Choice;
+
+    }
+  };
+}
+  
+/**************** ROUND 3 ****************/
+
+function makeRound3Trial(i){
+
+  const pair = imagePairs[i];
+  const q = round1Questions[i];
+
+  return {
+
+    type: jsPsychHtmlButtonResponse,
+
+    stimulus:
+      `<div class="centered">
+         <div class="question-title">
+           ${q.prompt}
+         </div>
+       </div>`,
+
+    choices:[
+      imgChoice(pair.A,"A"),
+      imgChoice(pair.B,"B")
+    ],
+
+    data:{
+      round:3,
+      feedback_condition:"B"
+    },
+
+    on_finish:function(d){
+
+      const c =
+        (d.response===0)
+          ? "A"
+          : "B";
+
       d.choice_label = c;
-      d.correct = (c === round1Choices[i]) ? 1 : 0;
+
+      round3Choices[i] = c;
+    }
+  };
+}
+
+const round4Intro = {
+
+  type: jsPsychHtmlKeyboardResponse,
+
+  stimulus: `
+  <div class="centered">
+
+    <p><strong>This is Round 4.</strong></p>
+
+    <p>
+      Based on what you learned in Round 3,
+      answer the next four questions by selecting
+      the appropriate image.
+    </p>
+
+    <p style="text-align:center;">
+      <strong>
+        Press space bar to begin.
+      </strong>
+    </p>
+
+  </div>
+  `,
+
+  choices:[' ']
+
+};
+
+function makeRound4Trial(i){
+
+  const pair = imagePairs[i];
+
+  return {
+
+    type: jsPsychHtmlButtonResponse,
+
+    stimulus:
+      `<div class="centered">
+         <div class="question-title">
+           ${round2Questions[i]}
+         </div>
+       </div>`,
+
+    choices:[
+      imgChoice(pair.A,"A"),
+      imgChoice(pair.B,"B")
+    ],
+
+    data:{
+      round:4,
+      feedback_condition:"B"
+    },
+
+    on_finish:function(data){
+
+      const choiceLabel =
+        (data.response===0)
+          ? "A"
+          : "B";
+
+      const r3Choice =
+        round3Choices[i];
+
+      const correct =
+        (ROUND4_CORRECT_RULE==="different")
+          ? (choiceLabel !== r3Choice)
+          : (choiceLabel === r3Choice);
+
+      data.choice_label = choiceLabel;
+
+      data.correct =
+        correct ? 1 : 0;
+
+      data.round3_choice_for_pair =
+        r3Choice;
     }
   };
 }
@@ -308,24 +491,78 @@ const finalScreen = {
 };
 
 /**************** TIMELINE ****************/
+
 const timeline = [];
 
 timeline.push(intro1);
 
-for(let i=0;i<4;i++){
-  timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback);
-}
-
-timeline.push(breakScreen, round2Intro);
+/**************** ROUND 1 ****************/
 
 for(let i=0;i<4;i++){
-  timeline.push(makeRound2Trial(i));
+
+  timeline.push(
+    makeRound1Trial(i)
+  );
+
+  timeline.push(
+    feedbackA
+  );
 }
 
-timeline.push(finalScreen);
+/**************** BREAK 1 ****************/
 
-jsPsych.run(timeline);
+timeline.push(
+  breakScreen
+);
+
+/**************** ROUND 2 ****************/
+
+timeline.push(
+  round2Intro
+);
+
+for(let i=0;i<4;i++){
+
+  timeline.push(
+    makeRound2Trial(i)
+  );
+}
+
+/**************** ROUND 3 ****************/
+
+for(let i=0;i<4;i++){
+
+  timeline.push(
+    makeRound3Trial(i)
+  );
+
+  timeline.push(
+    feedbackB
+  );
+}
+
+/**************** BREAK 2 ****************/
+
+timeline.push(
+  breakScreen
+);
+
+/**************** ROUND 4 ****************/
+
+timeline.push(
+  round4Intro
+);
+
+for(let i=0;i<4;i++){
+
+  timeline.push(
+    makeRound4Trial(i)
+  );
+}
+
+timeline.push(
+  finalScreen
+);
 
 </script>
 </body>
