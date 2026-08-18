@@ -496,76 +496,11 @@ console.log(timeline);
 
 const timeline = [];
 
-timeline.push(intro1);
+timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: "<h1>Hello World</h1>",
+    choices: ["Continue"]
+});
 
-/**************** ROUND 1 ****************/
-
-for(let i=0;i<4;i++){
-
-  timeline.push(
-    makeRound1Trial(i)
-  );
-
-  timeline.push(
-    feedbackA
-  );
-}
-
-/**************** BREAK 1 ****************/
-
-timeline.push(
-  breakScreen
-);
-
-/**************** ROUND 2 ****************/
-
-timeline.push(
-  round2Intro
-);
-
-for(let i=0;i<4;i++){
-
-  timeline.push(
-    makeRound2Trial(i)
-  );
-}
-
-/**************** ROUND 3 ****************/
-
-for(let i=0;i<4;i++){
-
-  timeline.push(
-    makeRound3Trial(i)
-  );
-
-  timeline.push(
-    feedbackB
-  );
-}
-
-/**************** BREAK 2 ****************/
-
-timeline.push(
-  breakScreen
-);
-
-/**************** ROUND 4 ****************/
-
-timeline.push(
-  round4Intro
-);
-
-for(let i=0;i<4;i++){
-
-  timeline.push(
-    makeRound4Trial(i)
-  );
-}
-
-timeline.push(
-  finalScreen
-);
-
-</script>
-</body>
-</html>
+console.log("About to run");
+jsPsych.run(timeline);
