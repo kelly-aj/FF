@@ -492,46 +492,23 @@ const finalScreen = {
   
 console.log("About to run");
 
-/**************** TIMELINE ****************/
+/**************** TEST TIMELINE ****************/
 
-const timeline = [];
+const timeline = [
+  {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+      <div style="text-align:center; margin-top:100px;">
+        <h1>IT WORKS</h1>
+        <p>If you can see this, jsPsych is running.</p>
+        <p>Press the space bar.</p>
+      </div>
+    `,
+    choices: [' ']
+  }
+];
 
-// Introduction
-timeline.push(intro1);
-
-// Round 1
-for (let i = 0; i < 4; i++) {
-  timeline.push(makeRound1Trial(i));
-}
-
-// Break
-timeline.push(breakScreen);
-
-// Round 2 introduction
-timeline.push(round2Intro);
-
-// Round 2
-for (let i = 0; i < 4; i++) {
-  timeline.push(makeRound2Trial(i));
-}
-
-// Round 3
-for (let i = 0; i < 4; i++) {
-  timeline.push(makeRound3Trial(i));
-}
-
-// Round 4 introduction
-timeline.push(round4Intro);
-
-// Round 4
-for (let i = 0; i < 4; i++) {
-  timeline.push(makeRound4Trial(i));
-}
-
-// Final screen
-timeline.push(finalScreen);
-
-console.log("About to run");
-console.log(timeline);
+console.log("TEST: jsPsych initialized");
+console.log("TEST: timeline created", timeline);
 
 jsPsych.run(timeline);
