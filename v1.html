@@ -99,8 +99,8 @@ const BREAK_SECONDS = 120;
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
-window.jsPsych = initJsPsych({ display_element: 'jspsych-target' }); 
-window.jsPsych.data.addProperties({ version: VERSION });
+window.jsPsychInstance = initJsPsych({ display_element: 'jspsych-target' }); 
+window.jsPsychInstance.data.addProperties({ version: VERSION });
 
 /**************** PAYLOAD BUILDER ****************/
 function buildSummaryPayload() {
@@ -511,4 +511,4 @@ const timeline = [
 console.log("TEST: jsPsych initialized");
 console.log("TEST: timeline created", timeline);
 
-jsPsych.run(timeline);
+window.jsPsychInstance.run(timeline);
