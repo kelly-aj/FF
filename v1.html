@@ -98,10 +98,6 @@ const BREAK_SECONDS = 120;
 
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
-/**************** INIT ****************/
-window.jsPsychInstance = initJsPsych({ display_element: 'jspsych-target' }); 
-window.jsPsychInstance.data.addProperties({ version: VERSION });
-
 /**************** PAYLOAD BUILDER ****************/
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
@@ -511,4 +507,21 @@ const timeline = [
 console.log("TEST: jsPsych initialized");
 console.log("TEST: timeline created", timeline);
 
-window.jsPsychInstance.run(timeline);
+<script>
+window.addEventListener('load', () => {
+  // create instance only once
+  if (!window.jsPsychInstance) {
+    window.jsPsychInstance = initJsPsych({ display_element: 'jspsych-target' });
+    window.jsPsychInstance.data.addProperties({ version: VERSION });
+  }
+
+  // make sure timeline exists and is non-empty
+  if (!Array.isArray(timeline) || timeline.length === 0) {
+    console.error('timeline is not ready:', timeline);
+    return;
+  }
+
+  // start the experiment
+  window.jsPsychInstance.run(timeline);
+});
+</script>
