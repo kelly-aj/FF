@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LFF Task - Version 1 (with Round 3)</title>
+  <title>LFF Task - Version 1 (with Round 3 & 4)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="jspsych/jspsych.css" />
@@ -41,10 +41,11 @@
       padding:12px;
     }
 
-    .incorrect-banner {
+    /* Feedback banner: now positive/green */
+    .feedback-banner {
       font-size:30px;
       font-weight:700;
-      color:#b00020;
+      color:#006400; /* darkgreen */
       text-align:center;
       margin:16px 0 24px;
     }
@@ -92,6 +93,7 @@
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
+// set to 'same' or 'different' to change Round 2 correctness rule
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
@@ -104,27 +106,33 @@ jsPsych.data.addProperties({ version: VERSION });
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
 
-  // Round 1, 2, 3
+  // Round 1 - 4
   const r1 = all.filter(d => d.round === 1);
   const r2 = all.filter(d => d.round === 2);
   const r3 = all.filter(d => d.round === 3);
+  const r4 = all.filter(d => d.round === 4);
 
   const r1_choices = r1.map(d => d.choice_label || '').join(',');
   const r2_choices = r2.map(d => d.choice_label || '').join(',');
   const r3_choices = r3.map(d => d.choice_label || '').join(',');
+  const r4_choices = r4.map(d => d.choice_label || '').join(',');
 
   const r2_correct_arr = r2.map(d => Number(d.correct || 0));
   const r2_correct = r2_correct_arr.join(',');
   const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
 
-  // R3 scoring summary
   const r3_correct_arr = r3.map(d => Number(d.correct || 0));
   const r3_correct = r3_correct_arr.join(',');
   const r3_total = r3_correct_arr.reduce((a,b)=>a+b,0);
 
+  const r4_correct_arr = r4.map(d => Number(d.correct || 0));
+  const r4_correct = r4_correct_arr.join(',');
+  const r4_total = r4_correct_arr.reduce((a,b)=>a+b,0);
+
   const rt_r1 = r1.map(d => d.rt || '').join(',');
   const rt_r2 = r2.map(d => d.rt || '').join(',');
   const rt_r3 = r3.map(d => d.rt || '').join(',');
+  const rt_r4 = r4.map(d => d.rt || '').join(',');
 
   // Find break row and reading row (unchanged)
   const breakRow = all.find(d => d.favorite_music !== undefined);
@@ -138,13 +146,17 @@ function buildSummaryPayload() {
     r1_choices,
     r2_choices,
     r3_choices,
+    r4_choices,
     r2_correct,
     r2_total: String(r2_total),
     r3_correct,
     r3_total: String(r3_total),
+    r4_correct,
+    r4_total: String(r4_total),
     rt_r1,
     rt_r2,
     rt_r3,
+    rt_r4,
     music_short,
     reading_time
   };
@@ -165,12 +177,20 @@ const round2Questions = [
   "Question #4. Which of the following characters represents a non-living stationary object?"
 ];
 
-// NEW: Round 3 (separate questions set)
+// Round 3 (separate questions set)
 const round3Questions = [
   "Round 3 - Question #1. Please select the image that matches the new instruction.",
   "Round 3 - Question #2. Please select the image that matches the new instruction.",
   "Round 3 - Question #3. Please select the image that matches the new instruction.",
   "Round 3 - Question #4. Please select the image that matches the new instruction."
+];
+
+// Round 4 (recall of Round 1 choices)
+const round4Questions = [
+  "Round 4 - Question #1. Which image did you pick earlier for Pair 1?",
+  "Round 4 - Question #2. Which image did you pick earlier for Pair 2?",
+  "Round 4 - Question #3. Which image did you pick earlier for Pair 3?",
+  "Round 4 - Question #4. Which image did you pick earlier for Pair 4?"
 ];
 
 const imagePairs = [
@@ -180,7 +200,7 @@ const imagePairs = [
   { A:"img/Pair 4 Image A.png", B:"img/Pair 4 Image B.png" }
 ];
 
-// NEW: separate image set for Round 3 — replace these placeholder paths when your images are ready
+// separate image set for Round 3 — replace these placeholder paths when your images are ready
 const imagePairsRound3 = [
   { A:"img/R3 Pair 1 A.png", B:"img/R3 Pair 1 B.png" },
   { A:"img/R3 Pair 2 A.png", B:"img/R3 Pair 2 B.png" },
@@ -190,7 +210,7 @@ const imagePairsRound3 = [
 
 const round1Choices = [null,null,null,null];
 
-// NEW: Answer key for Round 3 — fill with 'A' or 'B' to enable scoring, or leave null if you want manual scoring later
+// Answer key for Round 3 — fill with 'A' or 'B' if you want client scoring
 const round3Answers = [null, null, null, null];
 
 /**************** HELPERS ****************/
@@ -240,6 +260,18 @@ function makeRound1Trial(i){
   };
 }
 
+/**************** POSITIVE FEEDBACK (used after Round 3 selections) ****************/
+const positiveFeedback = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
+    <div class="press-space">Press space to continue.</div>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** INCORRECT FEEDBACK (used after Round 1 selections) ****************/
 const incorrectFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -313,7 +345,7 @@ const round2Intro = {
   choices:[' ']
 };
 
-/**************** ROUND 2 ****************/
+/**************** ROUND 2 (with Version 2 scoring) ****************/
 function makeRound2Trial(i){
   const pair = imagePairs[i];
   return {
@@ -322,9 +354,21 @@ function makeRound2Trial(i){
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     data: { round: 2 },
     on_finish: function(d){
-      const c = (d.response===0) ? "A" : "B";
-      d.choice_label = c;
-      d.correct = (c === round1Choices[i]) ? 1 : 0;
+      // choice label A/B
+      const choiceLabel = (d.response === 0) ? "A" : "B";
+      // what they chose in Round 1 for the same pair
+      const r1Choice = round1Choices[i];
+
+      // ✅ Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
+      const correct = (ROUND2_CORRECT_RULE === 'different')
+        ? (choiceLabel !== r1Choice)
+        : (choiceLabel === r1Choice);
+
+      // extra fields per your snippet
+      d.choice_label = choiceLabel;
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+      d.round1_choice_for_pair = r1Choice;
+      d.correct = correct ? 1 : 0;
     }
   };
 }
@@ -353,13 +397,47 @@ function makeRound3Trial(i){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
 
-      // Default scoring for Round 3: use round3Answers if provided.
       const key = round3Answers[i];
       if(key === 'A' || key === 'B'){
         d.correct = (c === key) ? 1 : 0;
       } else {
         d.correct = null;
       }
+
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+    }
+  };
+}
+
+/**************** ROUND 4 INTRO (NEW - Recall) ****************/
+const round4Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <p><strong>This is Round 4 (Recall).</strong></p>
+    <p>Now we will ask you to recall which image you chose earlier for each pair. Select the image you remember picking before.</p>
+    <p style="text-align:center;"><strong>Press space to begin Round 4.</strong></p>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** ROUND 4 (NEW) ****************/
+function makeRound4Trial(i){
+  // Use the same imagePairs as Round 1 so we can compare to round1Choices
+  const pair = imagePairs[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 4 },
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+      // correctness = whether they recall what they originally chose in Round 1
+      d.correct = (c === round1Choices[i]) ? 1 : 0;
+      // store what they originally chose for traceability
+      d.round1_choice = round1Choices[i];
     }
   };
 }
@@ -398,7 +476,7 @@ timeline.push(intro1, intro2);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback);
+  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
 }
 
 timeline.push(breakScreen, round2Intro);
@@ -407,10 +485,17 @@ for(let i=0;i<4;i++){
   timeline.push(makeRound2Trial(i));
 }
 
-// NEW: add Round 3
+// Round 3
 timeline.push(round3Intro);
 for(let i=0;i<4;i++){
   timeline.push(makeRound3Trial(i));
+  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
+}
+
+// Round 4 (recall)
+timeline.push(round4Intro);
+for(let i=0;i<4;i++){
+  timeline.push(makeRound4Trial(i));
 }
 
 timeline.push(finalScreen);
