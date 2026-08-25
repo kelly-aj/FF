@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LFF Task - Version 1</title>
+  <title>LFF Task - Version 1 (with Round 3)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="jspsych/jspsych.css" />
@@ -94,7 +94,6 @@
 const VERSION = "v1";
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
-
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
@@ -105,42 +104,49 @@ jsPsych.data.addProperties({ version: VERSION });
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
 
-  // ***** FIXED: safer extraction *****
+  // Round 1, 2, 3
   const r1 = all.filter(d => d.round === 1);
   const r2 = all.filter(d => d.round === 2);
+  const r3 = all.filter(d => d.round === 3);
 
   const r1_choices = r1.map(d => d.choice_label || '').join(',');
   const r2_choices = r2.map(d => d.choice_label || '').join(',');
+  const r3_choices = r3.map(d => d.choice_label || '').join(',');
 
   const r2_correct_arr = r2.map(d => Number(d.correct || 0));
   const r2_correct = r2_correct_arr.join(',');
   const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
 
+  // R3 scoring summary
+  const r3_correct_arr = r3.map(d => Number(d.correct || 0));
+  const r3_correct = r3_correct_arr.join(',');
+  const r3_total = r3_correct_arr.reduce((a,b)=>a+b,0);
+
   const rt_r1 = r1.map(d => d.rt || '').join(',');
   const rt_r2 = r2.map(d => d.rt || '').join(',');
+  const rt_r3 = r3.map(d => d.rt || '').join(',');
 
-  // ***** FIXED: correctly find break row *****
+  // Find break row and reading row (unchanged)
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
   const music_short = music.length > 150 ? music.slice(0, 150) : music;
 
-  // ***** FIXED: reliable extraction *****
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
-
-  const compRow = all.find(d => d.screen === 'comprehension');
-  const comp_correct = compRow ? compRow.correct : '';
 
   return {
     r1_choices,
     r2_choices,
+    r3_choices,
     r2_correct,
     r2_total: String(r2_total),
+    r3_correct,
+    r3_total: String(r3_total),
     rt_r1,
     rt_r2,
+    rt_r3,
     music_short,
-    reading_time,
-    comp_correct
+    reading_time
   };
 }
 
@@ -159,6 +165,14 @@ const round2Questions = [
   "Question #4. Which of the following characters represents a non-living stationary object?"
 ];
 
+// NEW: Round 3 (separate questions set)
+const round3Questions = [
+  "Round 3 - Question #1. Please select the image that matches the new instruction.",
+  "Round 3 - Question #2. Please select the image that matches the new instruction.",
+  "Round 3 - Question #3. Please select the image that matches the new instruction.",
+  "Round 3 - Question #4. Please select the image that matches the new instruction."
+];
+
 const imagePairs = [
   { A:"img/Pair 1 Image A.png", B:"img/Pair 1 Image B.png" },
   { A:"img/Pair 2 Image A.png", B:"img/Pair 2 Image B.png" },
@@ -166,7 +180,18 @@ const imagePairs = [
   { A:"img/Pair 4 Image A.png", B:"img/Pair 4 Image B.png" }
 ];
 
+// NEW: separate image set for Round 3 — replace these placeholder paths when your images are ready
+const imagePairsRound3 = [
+  { A:"img/R3 Pair 1 A.png", B:"img/R3 Pair 1 B.png" },
+  { A:"img/R3 Pair 2 A.png", B:"img/R3 Pair 2 B.png" },
+  { A:"img/R3 Pair 3 A.png", B:"img/R3 Pair 3 B.png" },
+  { A:"img/R3 Pair 4 A.png", B:"img/R3 Pair 4 B.png" }
+];
+
 const round1Choices = [null,null,null,null];
+
+// NEW: Answer key for Round 3 — fill with 'A' or 'B' to enable scoring, or leave null if you want manual scoring later
+const round3Answers = [null, null, null, null];
 
 /**************** HELPERS ****************/
 function imgChoice(src, alt) {
@@ -198,30 +223,6 @@ const intro2 = {
   on_finish: d => d.reading_time = d.rt
 };
 
-/**************** COMPREHENSION CHECK ****************/
-let compOptions = [];
-const comprehensionCheck = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered"><div class="question-title">
-  According to the message you just read, what is the main point about learning from mistakes?
-  </div></div>`,
-  data: { screen: 'comprehension' },
-  on_start: function(){
-    compOptions = jsPsych.randomization.shuffle([
-      {text:"People usually remember failures accurately without much effort.",value:"A"},
-      {text:"Learning from mistakes requires deliberate attention because memory of what happened can be unreliable.",value:"B"},
-      {text:"Most mistakes are caused by external factors rather than personal actions.",value:"C"},
-      {text:"People naturally avoid repeating errors even if they don’t reflect on them.",value:"D"}
-    ]);
-    this.choices = compOptions.map(o=>o.text);
-  },
-  button_html: `<button class="vertical-btn">%choice%</button>`,
-  on_finish: function(d){
-    const sel = compOptions[d.response];
-    d.correct = (sel.value==="B") ? 1 : 0;
-  }
-};
-
 /**************** ROUND 1 ****************/
 function makeRound1Trial(i){
   const pair = imagePairs[i];
@@ -230,7 +231,7 @@ function makeRound1Trial(i){
     type: jsPsychHtmlButtonResponse,
     stimulus: `<div class="centered"><div class="question-title">${q.prompt}</div></div>`,
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round: 1 }, // ***** ADDED *****
+    data: { round: 1 },
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
@@ -319,11 +320,46 @@ function makeRound2Trial(i){
     type: jsPsychHtmlButtonResponse,
     stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round: 2 }, // ***** ADDED *****
+    data: { round: 2 },
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
       d.correct = (c === round1Choices[i]) ? 1 : 0;
+    }
+  };
+}
+
+/**************** ROUND 3 INTRO (NEW) ****************/
+const round3Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <p><strong>This is Round 3.</strong></p>
+    <p>This round uses a different set of images and will be scored separately. When you are ready, press space to begin.</p>
+    <p style="text-align:center;"><strong>Press space to begin Round 3.</strong></p>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** ROUND 3 (NEW) ****************/
+function makeRound3Trial(i){
+  const pair = imagePairsRound3[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round3Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 3 },
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
+
+      // Default scoring for Round 3: use round3Answers if provided.
+      const key = round3Answers[i];
+      if(key === 'A' || key === 'B'){
+        d.correct = (c === key) ? 1 : 0;
+      } else {
+        d.correct = null;
+      }
     }
   };
 }
@@ -358,7 +394,7 @@ const finalScreen = {
 /**************** TIMELINE ****************/
 const timeline = [];
 
-timeline.push(intro1, intro2, comprehensionCheck);
+timeline.push(intro1, intro2);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound1Trial(i));
@@ -369,6 +405,12 @@ timeline.push(breakScreen, round2Intro);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound2Trial(i));
+}
+
+// NEW: add Round 3
+timeline.push(round3Intro);
+for(let i=0;i<4;i++){
+  timeline.push(makeRound3Trial(i));
 }
 
 timeline.push(finalScreen);
