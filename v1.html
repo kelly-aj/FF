@@ -260,23 +260,12 @@ function makeRound1Trial(i){
   };
 }
 
-/**************** POSITIVE FEEDBACK (used after Round 3 selections) ****************/
+/**************** POSITIVE FEEDBACK (used after Round 1 selections) ****************/
 const positiveFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
     <div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
-    <div class="press-space">Press space to continue.</div>
-  </div>`,
-  choices:[' ']
-};
-
-/**************** INCORRECT FEEDBACK (used after Round 1 selections) ****************/
-const incorrectFeedback = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
     <div class="press-space">Press space to continue.</div>
   </div>`,
   choices:[' ']
@@ -476,7 +465,7 @@ timeline.push(intro1, intro2);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
+  timeline.push(positiveFeedback); // show positive feedback after each Round 1 selection
 }
 
 timeline.push(breakScreen, round2Intro);
@@ -489,7 +478,6 @@ for(let i=0;i<4;i++){
 timeline.push(round3Intro);
 for(let i=0;i<4;i++){
   timeline.push(makeRound3Trial(i));
-  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
 }
 
 // Round 4 (recall)
