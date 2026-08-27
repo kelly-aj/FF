@@ -41,7 +41,15 @@
       padding:12px;
     }
 
-    /* Feedback banner: now positive/green */
+    .incorrect-banner {
+      font-size:30px;
+      font-weight:700;
+      color:#b00020;
+      text-align:center;
+      margin:16px 0 24px;
+    }
+
+    /* Feedback banner: positive/green */
     .feedback-banner {
       font-size:30px;
       font-weight:700;
@@ -61,7 +69,8 @@
       margin-top:10px;
     }
 
-    textarea#music {
+    textarea#music,
+    textarea#writing {
       width:100%;
       min-height:160px;
       font-size:16px;
@@ -134,10 +143,14 @@ function buildSummaryPayload() {
   const rt_r3 = r3.map(d => d.rt || '').join(',');
   const rt_r4 = r4.map(d => d.rt || '').join(',');
 
-  // Find break row and reading row (unchanged)
+  // Find break rows
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
   const music_short = music.length > 150 ? music.slice(0, 150) : music;
+
+  const break2Row = all.find(d => d.favorite_writing !== undefined);
+  const writing = break2Row ? break2Row.favorite_writing : "";
+  const writing_short = writing.length > 150 ? writing.slice(0, 150) : writing;
 
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
@@ -158,6 +171,7 @@ function buildSummaryPayload() {
     rt_r3,
     rt_r4,
     music_short,
+    writing_short,
     reading_time
   };
 }
@@ -185,12 +199,12 @@ const round3Questions = [
   "Round 3 - Question #4. Please select the image that matches the new instruction."
 ];
 
-// Round 4 (recall of Round 1 choices)
+// Round 4 (recall of Round 3 choices)
 const round4Questions = [
-  "Round 4 - Question #1. Which image did you pick earlier for Pair 1?",
-  "Round 4 - Question #2. Which image did you pick earlier for Pair 2?",
-  "Round 4 - Question #3. Which image did you pick earlier for Pair 3?",
-  "Round 4 - Question #4. Which image did you pick earlier for Pair 4?"
+  "Round 4 - Question #1. Which image did you pick earlier in Round 3 for Pair 1?",
+  "Round 4 - Question #2. Which image did you pick earlier in Round 3 for Pair 2?",
+  "Round 4 - Question #3. Which image did you pick earlier in Round 3 for Pair 3?",
+  "Round 4 - Question #4. Which image did you pick earlier in Round 3 for Pair 4?"
 ];
 
 const imagePairs = [
@@ -209,6 +223,7 @@ const imagePairsRound3 = [
 ];
 
 const round1Choices = [null,null,null,null];
+const round3Choices = [null,null,null,null]; // track round3 selections
 
 // Answer key for Round 3 — fill with 'A' or 'B' if you want client scoring
 const round3Answers = [null, null, null, null];
@@ -255,23 +270,24 @@ function makeRound1Trial(i){
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
       round1Choices[i] = c;
     }
   };
 }
 
-/**************** POSITIVE FEEDBACK (used after Round 1 selections) ****************/
-const positiveFeedback = {
+/**************** INCORRECT FEEDBACK (used after Round 1 selections) ****************/
+const incorrectFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
-    <div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
+    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
     <div class="press-space">Press space to continue.</div>
   </div>`,
   choices:[' ']
 };
 
-/**************** BREAK ****************/
+/**************** BREAK 1 (music) ****************/
 let breakIntervalId=null;
 
 const breakScreen = {
@@ -316,7 +332,7 @@ const breakScreen = {
   },
 
   on_finish: function(d){
-    if(breakIntervalId){ clearInterval(breakIntervalId); }
+    if(breakIntervalId){ clearInterval(breakIntervalId); breakIntervalId = null; }
     const txt = document.getElementById('music');
     d.favorite_music = txt ? txt.value : '';
   }
@@ -348,12 +364,12 @@ function makeRound2Trial(i){
       // what they chose in Round 1 for the same pair
       const r1Choice = round1Choices[i];
 
-      // ✅ Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
+      // Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
       const correct = (ROUND2_CORRECT_RULE === 'different')
         ? (choiceLabel !== r1Choice)
         : (choiceLabel === r1Choice);
 
-      // extra fields per your snippet
+      // extra fields
       d.choice_label = choiceLabel;
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
       d.round1_choice_for_pair = r1Choice;
@@ -386,34 +402,102 @@ function makeRound3Trial(i){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
 
+      // record chosen image
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+
+      // store to round3Choices for later recall in Round 4
+      round3Choices[i] = c;
+
+      // scoring for Round 3 if a key is provided; otherwise leave null
       const key = round3Answers[i];
       if(key === 'A' || key === 'B'){
         d.correct = (c === key) ? 1 : 0;
       } else {
         d.correct = null;
       }
-
-      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
     }
   };
 }
 
-/**************** ROUND 4 INTRO (NEW - Recall) ****************/
+/**************** POSITIVE FEEDBACK (used after Round 3 selections) ****************/
+const positiveFeedback = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
+    <div class="press-space">Press space to continue.</div>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** BREAK 2 (writing) - between Round 3 and Round 4 ****************/
+let break2IntervalId = null;
+
+const break2Screen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <div class="centered">
+    <p>Thanks — before the final recall round, please take a short writing break.</p>
+    <p><strong>Write briefly about a recent experience you enjoyed.</strong></p>
+    <p>Please take two minutes and write your answer in the textbox below.</p>
+
+    <div class="break-box">
+      <div style="flex:1;">
+        <textarea id="writing" placeholder="Type your answer here..."></textarea>
+      </div>
+      <div class="countdown" id="countdown2">2:00</div>
+    </div>
+  </div>
+  `,
+  choices: ['Submit'],
+  button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
+
+  on_load: function(){
+    const btn = document.querySelector('.jspsych-html-button-response-button button');
+    const el = document.getElementById('countdown2');
+
+    let total = BREAK_SECONDS;
+
+    function formatTime(s){
+      return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    }
+
+    el.textContent = formatTime(total);
+
+    break2IntervalId = setInterval(()=>{
+      total--;
+      el.textContent = formatTime(Math.max(total,0));
+      if(total<=0){
+        clearInterval(break2IntervalId);
+        break2IntervalId = null;
+        btn.disabled = false;
+      }
+    },1000);
+  },
+
+  on_finish: function(d){
+    if(break2IntervalId){ clearInterval(break2IntervalId); break2IntervalId = null; }
+    const txt = document.getElementById('writing');
+    d.favorite_writing = txt ? txt.value : '';
+  }
+};
+
+/**************** ROUND 4 INTRO (NEW - Recall of Round 3) ****************/
 const round4Intro = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
   <div class="centered">
     <p><strong>This is Round 4 (Recall).</strong></p>
-    <p>Now we will ask you to recall which image you chose earlier for each pair. Select the image you remember picking before.</p>
+    <p>Now we will ask you to recall which image you chose earlier in Round 3 for each pair. Select the image you remember picking in Round 3.</p>
     <p style="text-align:center;"><strong>Press space to begin Round 4.</strong></p>
   </div>`,
   choices:[' ']
 };
 
-/**************** ROUND 4 (NEW) ****************/
+/**************** ROUND 4 (NEW) - uses images from Round 3 and compares to round3Choices ****************/
 function makeRound4Trial(i){
-  // Use the same imagePairs as Round 1 so we can compare to round1Choices
-  const pair = imagePairs[i];
+  // Use the Round 3 imagePairs so we can compare to round3Choices
+  const pair = imagePairsRound3[i];
   return {
     type: jsPsychHtmlButtonResponse,
     stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
@@ -423,10 +507,10 @@ function makeRound4Trial(i){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
-      // correctness = whether they recall what they originally chose in Round 1
-      d.correct = (c === round1Choices[i]) ? 1 : 0;
-      // store what they originally chose for traceability
-      d.round1_choice = round1Choices[i];
+      // correctness = whether they recall what they originally chose in Round 3
+      d.correct = (c === round3Choices[i]) ? 1 : 0;
+      // store what they originally chose in Round 3 for traceability
+      d.round3_choice_for_pair = round3Choices[i];
     }
   };
 }
@@ -465,7 +549,7 @@ timeline.push(intro1, intro2);
 
 for(let i=0;i<4;i++){
   timeline.push(makeRound1Trial(i));
-  timeline.push(positiveFeedback); // show positive feedback after each Round 1 selection
+  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
 }
 
 timeline.push(breakScreen, round2Intro);
@@ -478,9 +562,13 @@ for(let i=0;i<4;i++){
 timeline.push(round3Intro);
 for(let i=0;i<4;i++){
   timeline.push(makeRound3Trial(i));
+  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
 }
 
-// Round 4 (recall)
+// writing break between Round 3 and Round 4
+timeline.push(break2Screen);
+
+// Round 4 (recall of Round 3)
 timeline.push(round4Intro);
 for(let i=0;i<4;i++){
   timeline.push(makeRound4Trial(i));
