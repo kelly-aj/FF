@@ -326,6 +326,7 @@ const breakScreen = {
       el.textContent = formatTime(Math.max(total,0));
       if(total<=0){
         clearInterval(breakIntervalId);
+        breakIntervalId = null;
         btn.disabled = false;
       }
     },1000);
