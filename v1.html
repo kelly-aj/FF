@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>LFF Task - Version 1 (with Round 3 & 4)</title>
+  <title>LFF Task - Version 1 (with embedded squared task)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="jspsych/jspsych.css" />
+  <link rel="stylesheet" href="squared/squared.css" />
 
   <script src="jspsych/jspsych.js"></script>
   <script src="jspsych/plugin-preload.js"></script>
@@ -143,6 +144,24 @@ function buildSummaryPayload() {
   const rt_r3 = r3.map(d => d.rt || '').join(',');
   const rt_r4 = r4.map(d => d.rt || '').join(',');
 
+  // SQUARED summaries: stroop, flanker, simon
+  function getTaskSummary(taskName) {
+    try {
+      const mainFilter = jsPsych.data.get().filter({ task: taskName, practice: 0, timeout: 0 });
+      const lastRow = mainFilter.last(1).values()[0] || {};
+      return {
+        score_final: lastRow.score_final || '',
+        meanrt_final: mainFilter.select('rt').mean() || ''
+      };
+    } catch (e) {
+      return { score_final:'', meanrt_final: '' };
+    }
+  }
+
+  const stroopSummary = getTaskSummary('stroop');
+  const flankerSummary = getTaskSummary('flanker');
+  const simonSummary = getTaskSummary('simon');
+
   // Find break rows
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
@@ -172,11 +191,19 @@ function buildSummaryPayload() {
     rt_r4,
     music_short,
     writing_short,
-    reading_time
+    reading_time,
+
+    // squared summary metrics (Option B)
+    stroop_score: String(stroopSummary.score_final || ''),
+    stroop_meanrt: String(stroopSummary.meanrt_final || ''),
+    flanker_score: String(flankerSummary.score_final || ''),
+    flanker_meanrt: String(flankerSummary.meanrt_final || ''),
+    simon_score: String(simonSummary.score_final || ''),
+    simon_meanrt: String(simonSummary.meanrt_final || '')
   };
 }
 
-/**************** DATA ****************/
+/**************** DATA — your rounds and images ****************/
 const round1Questions = [
   { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
   { pair:2, prompt:"Question #2. Which of the following characters in an ancient script represents a person?" },
@@ -199,7 +226,7 @@ const round3Questions = [
   "Round 3 - Question #4. Please select the image that matches the new instruction."
 ];
 
-// Round 4 (recall of Round 3 choices)
+// Round 4 recall of Round 3
 const round4Questions = [
   "Round 4 - Question #1. Which image did you pick earlier in Round 3 for Pair 1?",
   "Round 4 - Question #2. Which image did you pick earlier in Round 3 for Pair 2?",
@@ -214,7 +241,7 @@ const imagePairs = [
   { A:"img/Pair 4 Image A.png", B:"img/Pair 4 Image B.png" }
 ];
 
-// separate image set for Round 3 — replace these placeholder paths when your images are ready
+// Round 3 uses a separate set of images (placeholders)
 const imagePairsRound3 = [
   { A:"img/R3 Pair 1 A.png", B:"img/R3 Pair 1 B.png" },
   { A:"img/R3 Pair 2 A.png", B:"img/R3 Pair 2 B.png" },
@@ -224,9 +251,7 @@ const imagePairsRound3 = [
 
 const round1Choices = [null,null,null,null];
 const round3Choices = [null,null,null,null]; // track round3 selections
-
-// Answer key for Round 3 — fill with 'A' or 'B' if you want client scoring
-const round3Answers = [null, null, null, null];
+const round3Answers = [null, null, null, null]; // optional key for round3 client scoring
 
 /**************** HELPERS ****************/
 function imgChoice(src, alt) {
@@ -477,108 +502,5 @@ const break2Screen = {
   },
 
   on_finish: function(d){
-    if(break2IntervalId){ clearInterval(break2IntervalId); break2IntervalId = null; }
-    const txt = document.getElementById('writing');
-    d.favorite_writing = txt ? txt.value : '';
-  }
-};
-
-/**************** ROUND 4 INTRO (NEW - Recall of Round 3) ****************/
-const round4Intro = {
-  type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <p><strong>This is Round 4 (Recall).</strong></p>
-    <p>Now we will ask you to recall which image you chose earlier in Round 3 for each pair. Select the image you remember picking in Round 3.</p>
-    <p style="text-align:center;"><strong>Press space to begin Round 4.</strong></p>
-  </div>`,
-  choices:[' ']
-};
-
-/**************** ROUND 4 (NEW) - uses images from Round 3 and compares to round3Choices ****************/
-function makeRound4Trial(i){
-  // Use the Round 3 imagePairs so we can compare to round3Choices
-  const pair = imagePairsRound3[i];
-  return {
-    type: jsPsychHtmlButtonResponse,
-    stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
-    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
-    data: { round: 4 },
-    on_finish: function(d){
-      const c = (d.response===0) ? "A" : "B";
-      d.choice_label = c;
-      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
-      // correctness = whether they recall what they originally chose in Round 3
-      d.correct = (c === round3Choices[i]) ? 1 : 0;
-      // store what they originally chose in Round 3 for traceability
-      d.round3_choice_for_pair = round3Choices[i];
-    }
-  };
-}
-
-/**************** FINAL SCREEN ****************/
-const finalScreen = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-  <div class="centered" style="text-align:center;">
-    <p><strong>Thank you for your participation!</strong></p>
-    <p>Click continue to return to Prolific.</p>
-  </div>
-  `,
-  choices: ['Continue'],
-  on_finish: function(){
-    const payload = buildSummaryPayload();
-
-    const params = new URLSearchParams(window.location.search);
-
-    const q = new URLSearchParams({
-      PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
-      STUDY_ID: params.get('STUDY_ID') || '',
-      SESSION_ID: params.get('SESSION_ID') || '',
-      version: VERSION,
-      ...payload
-    });
-
-    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
-  }
-};
-
-/**************** TIMELINE ****************/
-const timeline = [];
-
-timeline.push(intro1, intro2);
-
-for(let i=0;i<4;i++){
-  timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
-}
-
-timeline.push(breakScreen, round2Intro);
-
-for(let i=0;i<4;i++){
-  timeline.push(makeRound2Trial(i));
-}
-
-// Round 3
-timeline.push(round3Intro);
-for(let i=0;i<4;i++){
-  timeline.push(makeRound3Trial(i));
-  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
-}
-
-// writing break between Round 3 and Round 4
-timeline.push(break2Screen);
-
-// Round 4 (recall of Round 3)
-timeline.push(round4Intro);
-for(let i=0;i<4;i++){
-  timeline.push(makeRound4Trial(i));
-}
-
-timeline.push(finalScreen);
-
-jsPsych.run(timeline);
-
-</script>
-</body>
-</html>
+    if(break2IntervalId){ clearInterval(break2IntervalId
+
