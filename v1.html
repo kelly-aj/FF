@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="jspsych/jspsych.css" />
-  <link rel="stylesheet" href="squared/squared.css" />
+  <!-- NOTE: squared.css is loaded dynamically only while the squared task runs. Removed global include to avoid style collisions. -->
 
   <script src="jspsych/jspsych.js"></script>
 
@@ -131,6 +131,19 @@ window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 window._jsPsychInstance = window.jsPsych;
 
 jsPsych.data.addProperties({ version: VERSION });
+
+/**************** DYNAMIC CSS HELPERS ****************/
+// Load a stylesheet dynamically and return the link element for later removal
+function loadCSS(href){
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+  return link;
+}
+function unloadCSS(link){
+  if(link && link.parentNode){ link.parentNode.removeChild(link); }
+}
 
 /**************** PAYLOAD BUILDER ****************/
 function buildSummaryPayload() {
@@ -561,21 +574,54 @@ function makeRound4Trial(i){
   };
 }
 
-/**************** SQUARED TASK EMBEDDING ****************/
+/**************** SQUARED TASK EMBEDDING (dynamic CSS load/unload) ****************/
 function getSquaredTimeline() {
-  // (placeholder-safe implementation)
-  try {
-    var preloadSquared = { type: jsPsychPreload, images: ["squared/al.PNG","squared/ar.PNG","squared/ml_fr.PNG","squared/mr_fl.PNG","squared/rarr.PNG","squared/larr.PNG"] };
+  // local variable to hold the injected link element
+  let _squaredCSSLink = null;
 
-    var stroop_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Stroop (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="stroop" }] };
-    var flanker_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Flanker (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="flanker" }] };
-    var simon_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Simon (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="simon" }] };
+  // trial that loads squared.css automatically (very short)
+  const loadCssTrial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '', // invisible, purpose is to run on_start
+    choices: "NO_KEYS",
+    trial_duration: 10, // short, auto-ends
+    on_start: function() {
+      // inject stylesheet
+      _squaredCSSLink = loadCSS('squared/squared.css');
+      console.log('DEBUG: loaded squared.css', _squaredCSSLink && _squaredCSSLink.href);
+    }
+  };
 
-    return [preloadSquared, stroop_task, flanker_task, simon_task];
-  } catch (err) {
-    console.error('Error building squared timeline:', err);
-    return [];
-  }
+  // preload squared images
+  var preloadSquared = { type: jsPsychPreload, images: ["squared/al.PNG","squared/ar.PNG","squared/ml_fr.PNG","squared/mr_fl.PNG","squared/rarr.PNG","squared/larr.PNG"] };
+
+  // Minimal placeholders for stroop/flanker/simon tasks (safe embedded)
+  // If you prefer full fidelity, we can paste the cleaned squared task code here.
+  var stroop_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Stroop</p></div>", choices: ["Continue"], on_finish: d => d.task="stroop" }] };
+  var flanker_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Flanker</p></div>", choices: ["Continue"], on_finish: d => d.task="flanker" }] };
+  var simon_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Simon</p></div>", choices: ["Continue"], on_finish: d => d.task="simon" }] };
+
+  // trial that unloads the stylesheet after squared tasks finish
+  const unloadCssTrial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '', // invisible cleanup
+    choices: "NO_KEYS",
+    trial_duration: 10,
+    on_finish: function() {
+      // remove stylesheet
+      unloadCSS(_squaredCSSLink);
+      console.log('DEBUG: unloaded squared.css');
+    }
+  };
+
+  return [
+    loadCssTrial,
+    preloadSquared,
+    stroop_task,
+    flanker_task,
+    simon_task,
+    unloadCssTrial
+  ];
 }
 
 /**************** FINAL SCREEN ****************/
