@@ -103,7 +103,8 @@
 </head>
 
 <body>
-<div id="jspsych-target"></div>
+<!-- make the container focusable so keyboard trials reliably receive keypresses -->
+<div id="jspsych-target" tabindex="0"></div>
 
 <script>
 // Global error handlers to surface silent issues
@@ -641,18 +642,33 @@ for(let i=0;i<4;i++){
 
 timeline.push(finalScreen);
 
-// --- DEBUG: insert a visible debug trial and console tracing ---
+// --- DEBUG: button-based debug trial + focus the display element ---
 const debugTrial = {
-  type: jsPsychHtmlKeyboardResponse,
+  type: jsPsychHtmlButtonResponse,
   stimulus: `<div class="centered"><p style="font-size:20px;"><strong>DEBUG: jsPsych started</strong></p>
              <p>If you see this screen, jsPsych is running.</p>
-             <p>Press space to continue.</p></div>`,
-  choices: [' '],
-  on_start: () => console.log('DEBUG: debugTrial on_start'),
+             <p>Click Continue to proceed.</p></div>`,
+  choices: ['Continue'],
+  button_html: '<button class="jspsych-btn">%choice%</button>',
+  on_start: () => {
+    console.log('DEBUG: debugTrial on_start');
+    // ensure the display container has focus so keyboard trials later will receive keys
+    const target = document.getElementById('jspsych-target');
+    if (target && typeof target.focus === 'function') {
+      target.focus();
+      console.log('DEBUG: focused jspsych-target');
+    }
+  },
   on_finish: () => console.log('DEBUG: debugTrial on_finish')
 };
-// put the debug trial at the very start so it's the first thing shown
 timeline.unshift(debugTrial);
+
+// as a fallback, focus the container before running timeline
+const targetEl = document.getElementById('jspsych-target');
+if (targetEl && typeof targetEl.focus === 'function') {
+  targetEl.focus();
+  console.log('DEBUG: focused jspsych-target before run');
+}
 
 console.log('DEBUG: debug trial inserted, now calling jsPsych.run');
 jsPsych.run(timeline);
