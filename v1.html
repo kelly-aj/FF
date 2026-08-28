@@ -9,9 +9,12 @@
   <link rel="stylesheet" href="squared/squared.css" />
 
   <script src="jspsych/jspsych.js"></script>
+
+  <!-- Missing plugins required by the squared task -->
   <script src="jspsych/plugin-fullscreen.js"></script>
   <script src="jspsych/plugin-survey-text.js"></script>
   <script src="jspsych/plugin-survey-multi-choice.js"></script>
+
   <script src="jspsych/plugin-preload.js"></script>
   <script src="jspsych/plugin-html-keyboard-response.js"></script>
   <script src="jspsych/plugin-html-button-response.js"></script>
@@ -103,6 +106,15 @@
 <div id="jspsych-target"></div>
 
 <script>
+// Global error handlers to surface silent issues
+window.addEventListener('error', e => {
+  console.error('GLOBAL ERROR:', e.message, e.filename + ':' + e.lineno);
+});
+window.addEventListener('unhandledrejection', e => {
+  console.error('UNHANDLED PROMISE REJECTION:', e.reason);
+});
+
+console.log('Starting experiment script...');
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
@@ -112,7 +124,11 @@ const BREAK_SECONDS = 120;
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
-const jsPsych = initJsPsych({ display_element: 'jspsych-target' });
+// Expose the instance globally so you can inspect/run it from DevTools
+window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
+// also keep a backup reference for debugging
+window._jsPsychInstance = window.jsPsych;
+
 jsPsych.data.addProperties({ version: VERSION });
 
 /**************** PAYLOAD BUILDER ****************/
@@ -505,5 +521,142 @@ const break2Screen = {
   },
 
   on_finish: function(d){
-    if(break2IntervalId){ clearInterval(break2IntervalId
-
+    if(break2IntervalId){ clearInterval(break2IntervalId); break2IntervalId = null; }
+    const txt = document.getElementById('writing');
+    d.favorite_writing = txt ? txt.value : '';
+  }
+};
+
+/**************** ROUND 4 INTRO (NEW - Recall of Round 3) ****************/
+const round4Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `
+  <div class="centered">
+    <p><strong>This is Round 4 (Recall).</strong></p>
+    <p>Now we will ask you to recall which image you chose earlier in Round 3 for each pair. Select the image you remember picking in Round 3.</p>
+    <p style="text-align:center;"><strong>Press space to begin Round 4.</strong></p>
+  </div>`,
+  choices:[' ']
+};
+
+/**************** ROUND 4 (NEW) - uses images from Round 3 and compares to round3Choices ****************/
+function makeRound4Trial(i){
+  // Use the Round 3 imagePairs so we can compare to round3Choices
+  const pair = imagePairsRound3[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 4 },
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+      // correctness = whether they recall what they originally chose in Round 3
+      d.correct = (c === round3Choices[i]) ? 1 : 0;
+      // store what they originally chose in Round 3 for traceability
+      d.round3_choice_for_pair = round3Choices[i];
+    }
+  };
+}
+
+/**************** SQUARED TASK EMBEDDING ****************/
+function getSquaredTimeline() {
+  // (placeholder-safe implementation)
+  try {
+    var preloadSquared = { type: jsPsychPreload, images: ["squared/al.PNG","squared/ar.PNG","squared/ml_fr.PNG","squared/mr_fl.PNG","squared/rarr.PNG","squared/larr.PNG"] };
+
+    var stroop_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Stroop (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="stroop" }] };
+    var flanker_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Flanker (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="flanker" }] };
+    var simon_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Simon (placeholder)</p></div>", choices: ["Continue"], on_finish: d => d.task="simon" }] };
+
+    return [preloadSquared, stroop_task, flanker_task, simon_task];
+  } catch (err) {
+    console.error('Error building squared timeline:', err);
+    return [];
+  }
+}
+
+/**************** FINAL SCREEN ****************/
+const finalScreen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+  <div class="centered" style="text-align:center;">
+    <p><strong>Thank you for your participation!</strong></p>
+    <p>Click continue to return to Prolific.</p>
+  </div>
+  `,
+  choices: ['Continue'],
+  on_finish: function(){
+    const payload = buildSummaryPayload();
+
+    const params = new URLSearchParams(window.location.search);
+
+    const q = new URLSearchParams({
+      PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
+      STUDY_ID: params.get('STUDY_ID') || '',
+      SESSION_ID: params.get('SESSION_ID') || '',
+      version: VERSION,
+      ...payload
+    });
+
+    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+  }
+};
+
+/**************** TIMELINE — main experiment ****************/
+const timeline = [];
+
+timeline.push(intro1, intro2);
+
+for(let i=0;i<4;i++){
+  timeline.push(makeRound1Trial(i));
+  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
+}
+
+timeline.push(breakScreen, round2Intro);
+
+for(let i=0;i<4;i++){
+  timeline.push(makeRound2Trial(i));
+}
+
+// Insert squared tasks once between Round 2 and Round 3
+timeline.push(...getSquaredTimeline());
+
+// Round 3
+timeline.push(round3Intro);
+for(let i=0;i<4;i++){
+  timeline.push(makeRound3Trial(i));
+  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
+}
+
+// writing break between Round 3 and Round 4
+timeline.push(break2Screen);
+
+// Round 4 (recall of Round 3)
+timeline.push(round4Intro);
+for(let i=0;i<4;i++){
+  timeline.push(makeRound4Trial(i));
+}
+
+timeline.push(finalScreen);
+
+// --- DEBUG: insert a visible debug trial and console tracing ---
+const debugTrial = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p style="font-size:20px;"><strong>DEBUG: jsPsych started</strong></p>
+             <p>If you see this screen, jsPsych is running.</p>
+             <p>Press space to continue.</p></div>`,
+  choices: [' '],
+  on_start: () => console.log('DEBUG: debugTrial on_start'),
+  on_finish: () => console.log('DEBUG: debugTrial on_finish')
+};
+// put the debug trial at the very start so it's the first thing shown
+timeline.unshift(debugTrial);
+
+console.log('DEBUG: debug trial inserted, now calling jsPsych.run');
+jsPsych.run(timeline);
+
+</script>
+</body>
+</html>
