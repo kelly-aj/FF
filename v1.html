@@ -10,7 +10,7 @@
 
   <script src="jspsych/jspsych.js"></script>
 
-  <!-- Missing plugins required by the squared task -->
+  <!-- Plugins required by the page and squared tasks -->
   <script src="jspsych/plugin-fullscreen.js"></script>
   <script src="jspsych/plugin-survey-text.js"></script>
   <script src="jspsych/plugin-survey-multi-choice.js"></script>
@@ -119,7 +119,6 @@ console.log('Starting experiment script...');
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
-// set to 'same' or 'different' to change Round 2 correctness rule
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
@@ -127,13 +126,11 @@ const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/for
 /**************** INIT ****************/
 // Expose the instance globally so you can inspect/run it from DevTools
 window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
-// also keep a backup reference for debugging
 window._jsPsychInstance = window.jsPsych;
 
 jsPsych.data.addProperties({ version: VERSION });
 
 /**************** DYNAMIC CSS HELPERS ****************/
-// Load a stylesheet dynamically and return the link element for later removal
 function loadCSS(href){
   const link = document.createElement('link');
   link.rel = 'stylesheet';
@@ -149,7 +146,6 @@ function unloadCSS(link){
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
 
-  // Round 1 - 4
   const r1 = all.filter(d => d.round === 1);
   const r2 = all.filter(d => d.round === 2);
   const r3 = all.filter(d => d.round === 3);
@@ -177,7 +173,6 @@ function buildSummaryPayload() {
   const rt_r3 = r3.map(d => d.rt || '').join(',');
   const rt_r4 = r4.map(d => d.rt || '').join(',');
 
-  // SQUARED summaries: stroop, flanker, simon
   function getTaskSummary(taskName) {
     try {
       const mainFilter = jsPsych.data.get().filter({ task: taskName, practice: 0, timeout: 0 });
@@ -195,7 +190,6 @@ function buildSummaryPayload() {
   const flankerSummary = getTaskSummary('flanker');
   const simonSummary = getTaskSummary('simon');
 
-  // Find break rows
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
   const music_short = music.length > 150 ? music.slice(0, 150) : music;
@@ -225,8 +219,6 @@ function buildSummaryPayload() {
     music_short,
     writing_short,
     reading_time,
-
-    // squared summary metrics (Option B)
     stroop_score: String(stroopSummary.score_final || ''),
     stroop_meanrt: String(stroopSummary.meanrt_final || ''),
     flanker_score: String(flankerSummary.score_final || ''),
@@ -236,7 +228,7 @@ function buildSummaryPayload() {
   };
 }
 
-/**************** DATA — your rounds and images ****************/
+/**************** DATA & HELPERS ****************/
 const round1Questions = [
   { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
   { pair:2, prompt:"Question #2. Which of the following characters in an ancient script represents a person?" },
@@ -251,7 +243,6 @@ const round2Questions = [
   "Question #4. Which of the following characters represents a non-living stationary object?"
 ];
 
-// Round 3 (separate questions set)
 const round3Questions = [
   "Round 3 - Question #1. Please select the image that matches the new instruction.",
   "Round 3 - Question #2. Please select the image that matches the new instruction.",
@@ -259,7 +250,6 @@ const round3Questions = [
   "Round 3 - Question #4. Please select the image that matches the new instruction."
 ];
 
-// Round 4 recall of Round 3
 const round4Questions = [
   "Round 4 - Question #1. Which image did you pick earlier in Round 3 for Pair 1?",
   "Round 4 - Question #2. Which image did you pick earlier in Round 3 for Pair 2?",
@@ -274,7 +264,6 @@ const imagePairs = [
   { A:"img/Pair 4 Image A.png", B:"img/Pair 4 Image B.png" }
 ];
 
-// Round 3 uses a separate set of images (placeholders)
 const imagePairsRound3 = [
   { A:"img/R3 Pair 1 A.png", B:"img/R3 Pair 1 B.png" },
   { A:"img/R3 Pair 2 A.png", B:"img/R3 Pair 2 B.png" },
@@ -283,15 +272,14 @@ const imagePairsRound3 = [
 ];
 
 const round1Choices = [null,null,null,null];
-const round3Choices = [null,null,null,null]; // track round3 selections
-const round3Answers = [null, null, null, null]; // optional key for round3 client scoring
+const round3Choices = [null,null,null,null];
+const round3Answers = [null, null, null, null];
 
-/**************** HELPERS ****************/
 function imgChoice(src, alt) {
   return `<img class="choice-img" src="${src}" alt="${alt}">`;
 }
 
-/**************** INTRO ****************/
+/**************** ROUNDS UI ****************/
 const intro1 = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -308,15 +296,12 @@ const intro2 = {
   stimulus: `
   <div class="centered">
     <p>People often assume they naturally learn from their mistakes, but research shows this process is more difficult and less automatic than it seems.</p>
-    <p>When something goes wrong, people frequently feel confident that they will remember what happened and why — yet those details are easy to misinterpret or forget. As a result, individuals may repeat the same errors without realizing it.</p>
-    <p>As you complete the next task, keep in mind that learning from failure requires deliberate attention and that your memory for what happens may not be as reliable as it feels.</p>
     <p style="text-align:center;"><strong>Press space to begin Round 1.</strong></p>
   </div>`,
   choices: [' '],
   on_finish: d => d.reading_time = d.rt
 };
 
-/**************** ROUND 1 ****************/
 function makeRound1Trial(i){
   const pair = imagePairs[i];
   const q = round1Questions[i];
@@ -334,7 +319,6 @@ function makeRound1Trial(i){
   };
 }
 
-/**************** INCORRECT FEEDBACK (used after Round 1 selections) ****************/
 const incorrectFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -345,7 +329,6 @@ const incorrectFeedback = {
   choices:[' ']
 };
 
-/**************** BREAK 1 (music) ****************/
 let breakIntervalId=null;
 
 const breakScreen = {
@@ -366,19 +349,12 @@ const breakScreen = {
   `,
   choices: ['Submit'],
   button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
-
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown');
-
     let total = BREAK_SECONDS;
-
-    function formatTime(s){
-      return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-    }
-
+    function formatTime(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
     el.textContent = formatTime(total);
-
     breakIntervalId = setInterval(()=>{
       total--;
       el.textContent = formatTime(Math.max(total,0));
@@ -389,7 +365,6 @@ const breakScreen = {
       }
     },1000);
   },
-
   on_finish: function(d){
     if(breakIntervalId){ clearInterval(breakIntervalId); breakIntervalId = null; }
     const txt = document.getElementById('music');
@@ -397,7 +372,6 @@ const breakScreen = {
   }
 };
 
-/**************** ROUND 2 INTRO ****************/
 const round2Intro = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -409,7 +383,6 @@ const round2Intro = {
   choices:[' ']
 };
 
-/**************** ROUND 2 (with Version 2 scoring) ****************/
 function makeRound2Trial(i){
   const pair = imagePairs[i];
   return {
@@ -418,17 +391,9 @@ function makeRound2Trial(i){
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     data: { round: 2 },
     on_finish: function(d){
-      // choice label A/B
       const choiceLabel = (d.response === 0) ? "A" : "B";
-      // what they chose in Round 1 for the same pair
       const r1Choice = round1Choices[i];
-
-      // Version 2 scoring: correct is NOT what they chose in Round 1 when rule === 'different'
-      const correct = (ROUND2_CORRECT_RULE === 'different')
-        ? (choiceLabel !== r1Choice)
-        : (choiceLabel === r1Choice);
-
-      // extra fields
+      const correct = (ROUND2_CORRECT_RULE === 'different') ? (choiceLabel !== r1Choice) : (choiceLabel === r1Choice);
       d.choice_label = choiceLabel;
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
       d.round1_choice_for_pair = r1Choice;
@@ -437,7 +402,6 @@ function makeRound2Trial(i){
   };
 }
 
-/**************** ROUND 3 INTRO (NEW) ****************/
 const round3Intro = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -449,7 +413,6 @@ const round3Intro = {
   choices:[' ']
 };
 
-/**************** ROUND 3 (NEW) ****************/
 function makeRound3Trial(i){
   const pair = imagePairsRound3[i];
   return {
@@ -460,14 +423,8 @@ function makeRound3Trial(i){
     on_finish: function(d){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
-
-      // record chosen image
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
-
-      // store to round3Choices for later recall in Round 4
       round3Choices[i] = c;
-
-      // scoring for Round 3 if a key is provided; otherwise leave null
       const key = round3Answers[i];
       if(key === 'A' || key === 'B'){
         d.correct = (c === key) ? 1 : 0;
@@ -478,7 +435,6 @@ function makeRound3Trial(i){
   };
 }
 
-/**************** POSITIVE FEEDBACK (used after Round 3 selections) ****************/
 const positiveFeedback = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -489,7 +445,6 @@ const positiveFeedback = {
   choices:[' ']
 };
 
-/**************** BREAK 2 (writing) - between Round 3 and Round 4 ****************/
 let break2IntervalId = null;
 
 const break2Screen = {
@@ -510,19 +465,12 @@ const break2Screen = {
   `,
   choices: ['Submit'],
   button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
-
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown2');
-
     let total = BREAK_SECONDS;
-
-    function formatTime(s){
-      return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
-    }
-
+    function formatTime(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
     el.textContent = formatTime(total);
-
     break2IntervalId = setInterval(()=>{
       total--;
       el.textContent = formatTime(Math.max(total,0));
@@ -533,7 +481,6 @@ const break2Screen = {
       }
     },1000);
   },
-
   on_finish: function(d){
     if(break2IntervalId){ clearInterval(break2IntervalId); break2IntervalId = null; }
     const txt = document.getElementById('writing');
@@ -541,7 +488,6 @@ const break2Screen = {
   }
 };
 
-/**************** ROUND 4 INTRO (NEW - Recall of Round 3) ****************/
 const round4Intro = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: `
@@ -553,9 +499,7 @@ const round4Intro = {
   choices:[' ']
 };
 
-/**************** ROUND 4 (NEW) - uses images from Round 3 and compares to round3Choices ****************/
 function makeRound4Trial(i){
-  // Use the Round 3 imagePairs so we can compare to round3Choices
   const pair = imagePairsRound3[i];
   return {
     type: jsPsychHtmlButtonResponse,
@@ -566,159 +510,66 @@ function makeRound4Trial(i){
       const c = (d.response===0) ? "A" : "B";
       d.choice_label = c;
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
-      // correctness = whether they recall what they originally chose in Round 3
       d.correct = (c === round3Choices[i]) ? 1 : 0;
-      // store what they originally chose in Round 3 for traceability
       d.round3_choice_for_pair = round3Choices[i];
     }
   };
 }
 
-/**************** SQUARED TASK EMBEDDING (dynamic CSS load/unload) ****************/
+/**************** SQUARED TASK (embedded full tasks) ****************/
 function getSquaredTimeline() {
-  // local variable to hold the injected link element
-  let _squaredCSSLink = null;
+  // Local scope for squared tasks
+  const practice_duration = 30000;
+  const main_duration = 90000;
 
-  // trial that loads squared.css automatically (very short)
-  const loadCssTrial = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: '', // invisible, purpose is to run on_start
-    choices: "NO_KEYS",
-    trial_duration: 10, // short, auto-ends
-    on_start: function() {
-      // inject stylesheet
-      _squaredCSSLink = loadCSS('squared/squared.css');
-      console.log('DEBUG: loaded squared.css', _squaredCSSLink && _squaredCSSLink.href);
+  function countdown_local(start, timelimit) {
+    const timeleft_bar = document.getElementById("timeleft");
+    if (!timeleft_bar) return;
+    let timeleft_width = (timelimit - (Date.now() - start)) * 100 / timelimit;
+    function shorten_timebar() {
+      if (timeleft_width <= 0) {
+        clearInterval(update_timeleft);
+      } else {
+        timeleft_width -= 10 * 100 / timelimit;
+        timeleft_bar.style.width = timeleft_width + "%";
+      }
     }
-  };
-
-  // preload squared images
-  var preloadSquared = { type: jsPsychPreload, images: ["squared/al.PNG","squared/ar.PNG","squared/ml_fr.PNG","squared/mr_fl.PNG","squared/rarr.PNG","squared/larr.PNG"] };
-
-  // Minimal placeholders for stroop/flanker/simon tasks (safe embedded)
-  // If you prefer full fidelity, we can paste the cleaned squared task code here.
-  var stroop_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Stroop</p></div>", choices: ["Continue"], on_finish: d => d.task="stroop" }] };
-  var flanker_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Flanker</p></div>", choices: ["Continue"], on_finish: d => d.task="flanker" }] };
-  var simon_task = { timeline: [{ type: jsPsychHtmlButtonResponse, stimulus: "<div class='centered'><p>Squared task: Simon</p></div>", choices: ["Continue"], on_finish: d => d.task="simon" }] };
-
-  // trial that unloads the stylesheet after squared tasks finish
-  const unloadCssTrial = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: '', // invisible cleanup
-    choices: "NO_KEYS",
-    trial_duration: 10,
-    on_finish: function() {
-      // remove stylesheet
-      unloadCSS(_squaredCSSLink);
-      console.log('DEBUG: unloaded squared.css');
-    }
-  };
-
-  return [
-    loadCssTrial,
-    preloadSquared,
-    stroop_task,
-    flanker_task,
-    simon_task,
-    unloadCssTrial
-  ];
-}
-
-/**************** FINAL SCREEN ****************/
-const finalScreen = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `
-  <div class="centered" style="text-align:center;">
-    <p><strong>Thank you for your participation!</strong></p>
-    <p>Click continue to return to Prolific.</p>
-  </div>
-  `,
-  choices: ['Continue'],
-  on_finish: function(){
-    const payload = buildSummaryPayload();
-
-    const params = new URLSearchParams(window.location.search);
-
-    const q = new URLSearchParams({
-      PROLIFIC_PID: params.get('PROLIFIC_PID') || '',
-      STUDY_ID: params.get('STUDY_ID') || '',
-      SESSION_ID: params.get('SESSION_ID') || '',
-      version: VERSION,
-      ...payload
-    });
-
-    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+    const update_timeleft = setInterval(shorten_timebar, 10);
   }
-};
 
-/**************** TIMELINE — main experiment ****************/
-const timeline = [];
+  const al = "squared/al.PNG";
+  const ar = "squared/ar.PNG";
+  const mr_fl = "squared/mr_fl.PNG";
+  const ml_fr = "squared/ml_fr.PNG";
+  const rarr = "squared/rarr.PNG";
+  const larr = "squared/larr.PNG";
 
-timeline.push(intro1, intro2);
+  // STROOP
+  const stimuli_stroop = [
+    {stim: "RED", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#0000FF", resp2: "RED", resp2color: "#ff0302", correct_response: 1, condition: 1},
+    {stim: "RED", stimcolor: "#ff0302", resp1: "RED", resp1color: "#ff0302", resp2: "BLUE", resp2color: "#0000FF", correct_response: 0, condition: 1},
+    {stim: "BLUE", stimcolor: "#0000FF", resp1: "BLUE", resp1color: "#0000FF", resp2: "RED", resp2color: "#ff0302", correct_response: 0, condition: 1},
+    {stim: "BLUE", stimcolor: "#0000FF", resp1: "RED", resp1color: "#ff0302", resp2: "BLUE", resp2color: "#0000FF", correct_response: 1, condition: 1},
+    {stim: "RED", stimcolor: "#ff0302", resp1: "RED", resp1color: "#0000FF", resp2: "BLUE", resp2color: "#ff0302", correct_response: 0, condition: 2},
+    {stim: "RED", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#ff0302", resp2: "RED", resp2color: "#0000FF", correct_response: 1, condition: 2},
+    {stim: "BLUE", stimcolor: "#0000FF", resp1: "RED", resp1color: "#0000FF", resp2: "BLUE", resp2color: "#ff0302", correct_response: 1, condition: 2},
+    {stim: "BLUE", stimcolor: "#0000FF", resp1: "BLUE", resp1color: "#ff0302", resp2: "RED", resp2color: "#0000FF", correct_response: 0, condition: 2},
+    {stim: "RED", stimcolor: "#0000FF", resp1: "BLUE", resp1color: "#0000FF", resp2: "RED", resp2color: "#ff0302", correct_response: 0, condition: 3},
+    {stim: "RED", stimcolor: "#0000FF", resp1: "RED", resp1color: "#ff0302", resp2: "BLUE", resp2color: "#0000FF", correct_response: 1, condition: 3},
+    {stim: "BLUE", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#0000FF", resp2: "RED", resp2color: "#ff0302", correct_response: 1, condition: 3},
+    {stim: "BLUE", stimcolor: "#ff0302", resp1: "RED", resp1color: "#ff0302", resp2: "BLUE", resp2color: "#0000FF", correct_response: 0, condition: 3},
+    {stim: "RED", stimcolor: "#0000FF", resp1: "RED", resp1color: "#0000FF", resp2: "BLUE", resp2color: "#ff0302", correct_response: 1, condition: 4},
+    {stim: "RED", stimcolor: "#0000FF", resp1: "BLUE", resp1color: "#ff0302", resp2: "RED", resp2color: "#0000FF", correct_response: 0, condition: 4},
+    {stim: "BLUE", stimcolor: "#ff0302", resp1: "RED", resp1color: "#0000FF", resp2: "BLUE", resp2color: "#ff0302", correct_response: 0, condition: 4},
+    {stim: "BLUE", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#ff0302", resp2: "RED", resp2color: "#0000FF", correct_response: 1, condition: 4}
+  ];
 
-for(let i=0;i<4;i++){
-  timeline.push(makeRound1Trial(i));
-  timeline.push(incorrectFeedback); // show INCORRECT feedback after each Round 1 selection
-}
+  const items_stroop = Array.from(Array(16).keys());
+  const practice_stroop = jsPsych.randomization.sampleWithReplacement(items_stroop, 100);
+  const main_stroop = jsPsych.randomization.sampleWithReplacement(items_stroop, 500);
 
-timeline.push(breakScreen, round2Intro);
-
-for(let i=0;i<4;i++){
-  timeline.push(makeRound2Trial(i));
-}
-
-// Insert squared tasks once between Round 2 and Round 3
-timeline.push(...getSquaredTimeline());
-
-// Round 3
-timeline.push(round3Intro);
-for(let i=0;i<4;i++){
-  timeline.push(makeRound3Trial(i));
-  timeline.push(positiveFeedback); // show POSITIVE feedback after each Round 3 selection
-}
-
-// writing break between Round 3 and Round 4
-timeline.push(break2Screen);
-
-// Round 4 (recall of Round 3)
-timeline.push(round4Intro);
-for(let i=0;i<4;i++){
-  timeline.push(makeRound4Trial(i));
-}
-
-timeline.push(finalScreen);
-
-// --- DEBUG: button-based debug trial + focus the display element ---
-const debugTrial = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered"><p style="font-size:20px;"><strong>DEBUG: jsPsych started</strong></p>
-             <p>If you see this screen, jsPsych is running.</p>
-             <p>Click Continue to proceed.</p></div>`,
-  choices: ['Continue'],
-  button_html: '<button class="jspsych-btn">%choice%</button>',
-  on_start: () => {
-    console.log('DEBUG: debugTrial on_start');
-    // ensure the display container has focus so keyboard trials later will receive keys
-    const target = document.getElementById('jspsych-target');
-    if (target && typeof target.focus === 'function') {
-      target.focus();
-      console.log('DEBUG: focused jspsych-target');
-    }
-  },
-  on_finish: () => console.log('DEBUG: debugTrial on_finish')
-};
-timeline.unshift(debugTrial);
-
-// as a fallback, focus the container before running timeline
-const targetEl = document.getElementById('jspsych-target');
-if (targetEl && typeof targetEl.focus === 'function') {
-  targetEl.focus();
-  console.log('DEBUG: focused jspsych-target before run');
-}
-
-console.log('DEBUG: debug trial inserted, now calling jsPsych.run');
-jsPsych.run(timeline);
-
-</script>
-</body>
-</html>
+  function display_stroop(stimulusIndex) {
+    const stim = stimuli_stroop[stimulusIndex].stim;
+    const stimcolor = stimuli_stroop[stimulusIndex].stimcolor;
+    return "<div style='font-size: 10pt; display:flex; align-items:center;'>Time left<div id='countdownbar' style='margin:0 12px;'><div id='timeleft'></div></div><span style='font-size:54pt; font-weight:900; color:" + stimcolor + ";'>" + stim + "</span></div>";
+  }
