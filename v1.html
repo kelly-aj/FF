@@ -320,6 +320,328 @@ function makeRound4Trial(i){
 }
 
 /**************** SQUARED TASK (full restored with instructions and fixes) ****************/
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>LFF Task — Integrated with squared (patched)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Core experiment stylesheet -->
+  <link rel="stylesheet" href="jspsych/jspsych.css" />
+  <!-- squared/squared.css is loaded dynamically only while squared runs -->
+
+  <!-- jsPsych core + plugins -->
+  <script src="jspsych/jspsych.js"></script>
+  <script src="jspsych/plugin-preload.js"></script>
+  <script src="jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="jspsych/plugin-html-button-response.js"></script>
+  <script src="jspsych/plugin-fullscreen.js"></script>
+  <script src="jspsych/plugin-survey-text.js"></script>
+  <script src="jspsych/plugin-survey-multi-choice.js"></script>
+
+  <style>
+    body { background:#fafafa; font-family: Arial, sans-serif; color:#111; }
+    .centered { max-width:900px; margin:0 auto; padding:24px; line-height:1.45; }
+    .question-title { font-size:22px; font-weight:600; margin-bottom:16px; }
+    .choice-img { max-width:360px; max-height:320px; border:2px solid #ddd; border-radius:6px; }
+    .incorrect-banner { font-size:30px; font-weight:700; color:#b00020; text-align:center; margin:16px 0 24px; }
+    .feedback-banner { font-size:30px; font-weight:700; color:#006400; text-align:center; margin:16px 0 24px; }
+    .break-box { display:flex; gap:24px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-top:10px; }
+    textarea#music, textarea#writing { width:100%; min-height:160px; font-size:16px; padding:12px; border:2px solid #ccc; border-radius:6px; resize:vertical; }
+    .countdown { flex:0 0 220px; font-size:18px; border:2px solid #ccc; border-radius:6px; padding:12px; height:56px; display:flex; align-items:center; justify-content:center; background:#fff; }
+  </style>
+</head>
+
+<body>
+  <!-- focusable jsPsych container -->
+  <div id="jspsych-target" tabindex="0"></div>
+
+<script>
+/* Global error handlers */
+window.addEventListener('error', e => console.error('GLOBAL ERROR:', e.message, e.filename + ':' + e.lineno));
+window.addEventListener('unhandledrejection', e => console.error('UNHANDLED PROMISE REJECTION:', e.reason));
+
+console.log('Starting experiment script...');
+
+/**************** CONFIG ****************/
+const VERSION = "v1";
+const ROUND2_CORRECT_RULE = "same";
+const BREAK_SECONDS = 120;
+const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
+
+/**************** INIT ****************/
+// expose the instance globally for debugging
+window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
+window._jsPsychInstance = window.jsPsych;
+jsPsych.data.addProperties({ version: VERSION });
+
+/**************** DYNAMIC CSS HELPERS ****************/
+function loadCSS(href){
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+  document.head.appendChild(link);
+  return link;
+}
+function unloadCSS(link){
+  if(link && link.parentNode) link.parentNode.removeChild(link);
+}
+
+/**************** PAYLOAD BUILDER ****************/
+function buildSummaryPayload() {
+  const all = jsPsych.data.get().values();
+
+  const filterByRound = r => all.filter(d => d.round === r);
+  const r1 = filterByRound(1), r2 = filterByRound(2), r3 = filterByRound(3), r4 = filterByRound(4);
+
+  const joinChoices = arr => arr.map(d => d.choice_label || '').join(',');
+  const r1_choices = joinChoices(r1), r2_choices = joinChoices(r2), r3_choices = joinChoices(r3), r4_choices = joinChoices(r4);
+
+  const joinRT = arr => arr.map(d => d.rt || '').join(',');
+  const rt_r1 = joinRT(r1), rt_r2 = joinRT(r2), rt_r3 = joinRT(r3), rt_r4 = joinRT(r4);
+
+  const sumCounts = arr => arr.map(d => Number(d.correct || 0)).reduce((a,b)=>a+b,0);
+  const r2_correct_arr = r2.map(d => Number(d.correct || 0));
+  const r3_correct_arr = r3.map(d => Number(d.correct || 0));
+  const r4_correct_arr = r4.map(d => Number(d.correct || 0));
+
+  function getSquaredSummary(taskName){
+    try {
+      const filter = jsPsych.data.get().filter({ task: taskName, practice: 0, timeout: 0 });
+      const last = filter.last(1).values()[0] || {};
+      const meanrt = filter.select('rt').mean() || '';
+      return { score_final: last.score_after_trial !== undefined ? last.score_after_trial : (last.score_final || ''), meanrt_final: meanrt };
+    } catch (e) { return { score_final:'', meanrt_final: '' }; }
+  }
+
+  const stroop = getSquaredSummary('stroop');
+  const flanker = getSquaredSummary('flanker');
+  const simon = getSquaredSummary('simon');
+
+  const br = all.find(d => d.favorite_music !== undefined);
+  const music_short = br ? (br.favorite_music || '').slice(0,150) : '';
+  const br2 = all.find(d => d.favorite_writing !== undefined);
+  const writing_short = br2 ? (br2.favorite_writing || '').slice(0,150) : '';
+  const readingRow = all.find(d => d.reading_time !== undefined);
+  const reading_time = readingRow ? readingRow.reading_time : '';
+
+  return {
+    r1_choices, r2_choices, r3_choices, r4_choices,
+    r2_correct: r2.map(d => d.correct || 0).join(','), r2_total: String(sumCounts(r2)),
+    r3_correct: r3.map(d => d.correct || 0).join(','), r3_total: String(sumCounts(r3)),
+    r4_correct: r4.map(d => d.correct || 0).join(','), r4_total: String(sumCounts(r4)),
+    rt_r1, rt_r2, rt_r3, rt_r4,
+    music_short, writing_short, reading_time,
+    stroop_score: String(stroop.score_final || ''), stroop_meanrt: String(stroop.meanrt_final || ''),
+    flanker_score: String(flanker.score_final || ''), flanker_meanrt: String(flanker.meanrt_final || ''),
+    simon_score: String(simon.score_final || ''), simon_meanrt: String(simon.meanrt_final || '')
+  };
+}
+
+/**************** CORE TASK UI (Rounds 1-4) ****************/
+const round1Questions = [
+  { pair:1, prompt:"Question #1. Which of the following characters in an ancient script represents an animal?" },
+  { pair:2, prompt:"Question #2. Which of the following characters in an ancient script represents a person?" },
+  { pair:3, prompt:"Question #3. Which of the following characters in an ancient script represents a bird?" },
+  { pair:4, prompt:"Question #4. Which of the following characters in an ancient script represents a rodent?" }
+];
+
+const round2Questions = [
+  "Question #1. Which of the following characters represents a non-living stationary object?",
+  "Question #2. Which of the following characters represents a non-living stationary object?",
+  "Question #3. Which of the following characters represents a non-living stationary object?",
+  "Question #4. Which of the following characters represents a non-living stationary object?"
+];
+
+const round3Questions = [
+  "Round 3 - Question #1. Please select the image that matches the new instruction.",
+  "Round 3 - Question #2. Please select the image that matches the new instruction.",
+  "Round 3 - Question #3. Please select the image that matches the new instruction.",
+  "Round 3 - Question #4. Please select the image that matches the new instruction."
+];
+
+const round4Questions = [
+  "Round 4 - Question #1. Which image did you pick earlier in Round 3 for Pair 1?",
+  "Round 4 - Question #2. Which image did you pick earlier in Round 3 for Pair 2?",
+  "Round 4 - Question #3. Which image did you pick earlier in Round 3 for Pair 3?",
+  "Round 4 - Question #4. Which image did you pick earlier in Round 3 for Pair 4?"
+];
+
+const imagePairs = [
+  { A:"img/Pair 1 Image A.png", B:"img/Pair 1 Image B.png" },
+  { A:"img/Pair 2 Image A.png", B:"img/Pair 2 Image B.png" },
+  { A:"img/Pair 3 Image A.png", B:"img/Pair 3 Image B.png" },
+  { A:"img/Pair 4 Image A.png", B:"img/Pair 4 Image B.png" }
+];
+
+const imagePairsRound3 = [
+  { A:"img/R3 Pair 1 A.png", B:"img/R3 Pair 1 B.png" },
+  { A:"img/R3 Pair 2 A.png", B:"img/R3 Pair 2 B.png" },
+  { A:"img/R3 Pair 3 A.png", B:"img/R3 Pair 3 B.png" },
+  { A:"img/R3 Pair 4 A.png", B:"img/R3 Pair 4 B.png" }
+];
+
+const round1Choices = [null,null,null,null];
+const round3Choices = [null,null,null,null];
+const round3Answers = [null,null,null,null];
+
+function imgChoice(src, alt) { return `<img class="choice-img" src="${src}" alt="${alt}">`; }
+
+/* Intro screens */
+const intro1 = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p>Welcome! Today you will answer some language questions about a researcher-manufactured ancient script.</p><p style="text-align:center;"><strong>Press space to continue.</strong></p></div>`,
+  choices: [' ']
+};
+const intro2 = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p>Learning from failure requires attention. Press space to begin Round 1.</p></div>`,
+  choices: [' '],
+  on_finish: d => d.reading_time = d.rt
+};
+
+/* Round 1 */
+function makeRound1Trial(i){
+  const pair = imagePairs[i];
+  const q = round1Questions[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${q.prompt}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 1 },
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B";
+      d.choice_label = c;
+      d.chosen_image = (d.response === 0) ? pair.A : pair.B;
+      round1Choices[i] = c;
+    }
+  };
+}
+
+const incorrectFeedback = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div><div class="press-space">Press space to continue.</div></div>`,
+  choices: [' ']
+};
+
+/* Break 1 */
+const breakScreen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+    <div class="centered">
+      <p>Take a short breather.</p>
+      <p><strong>What is your favorite music to listen to?</strong></p>
+      <div class="break-box">
+        <div style="flex:1;"><textarea id="music" placeholder="Type here..."></textarea></div>
+        <div class="countdown" id="countdown">2:00</div>
+      </div>
+    </div>`,
+  choices: ['Submit'],
+  button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
+  on_load: function(){
+    const btn = document.querySelector('.jspsych-html-button-response-button button');
+    const el = document.getElementById('countdown');
+    let total = BREAK_SECONDS;
+    el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    this._interval = setInterval(()=>{
+      total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`;
+      if(total<=0){ clearInterval(this._interval); btn.disabled=false; }
+    },1000);
+  },
+  on_finish: function(d){
+    if(this._interval) clearInterval(this._interval);
+    const txt = document.getElementById('music'); d.favorite_music = txt ? txt.value : '';
+  }
+};
+
+/* Round 2 */
+const round2Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p><strong>This is Round 2.</strong></p><p>Press space to begin.</p></div>`,
+  choices: [' ']
+};
+
+function makeRound2Trial(i){
+  const pair = imagePairs[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round2Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 2 },
+    on_finish: function(d){
+      const choiceLabel = (d.response===0) ? "A" : "B";
+      const r1Choice = round1Choices[i];
+      const correct = (ROUND2_CORRECT_RULE === 'different') ? (choiceLabel !== r1Choice) : (choiceLabel === r1Choice);
+      d.choice_label = choiceLabel; d.chosen_image = (d.response===0) ? pair.A : pair.B;
+      d.round1_choice_for_pair = r1Choice; d.correct = correct ? 1 : 0;
+    }
+  };
+}
+
+/* Round 3 & 4 setup */
+const round3Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p><strong>This is Round 3.</strong></p><p>Press space to begin.</p></div>`,
+  choices: [' ']
+};
+function makeRound3Trial(i){
+  const pair = imagePairsRound3[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round3Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 3 },
+    on_finish: function(d){
+      const c = (d.response===0) ? "A" : "B"; d.choice_label = c; d.chosen_image = (d.response===0) ? pair.A : pair.B; round3Choices[i] = c;
+      const key = round3Answers[i]; d.correct = (key === 'A' || key === 'B') ? (c === key ? 1 : 0) : null;
+    }
+  };
+}
+const positiveFeedback = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div><div class="press-space">Press space to continue.</div></div>`,
+  choices: [' ']
+};
+
+const break2Screen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+    <div class="centered">
+      <p>Write briefly about a recent experience you enjoyed.</p>
+      <div class="break-box">
+        <div style="flex:1;"><textarea id="writing" placeholder="Type here..."></textarea></div>
+        <div class="countdown" id="countdown2">2:00</div>
+      </div>
+    </div>`,
+  choices: ['Submit'],
+  button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
+  on_load: function(){
+    const btn = document.querySelector('.jspsych-html-button-response-button button');
+    const el = document.getElementById('countdown2');
+    let total = BREAK_SECONDS; el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    this._interval = setInterval(()=>{ total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`; if(total<=0){ clearInterval(this._interval); btn.disabled=false; } },1000);
+  },
+  on_finish: function(d){ if(this._interval) clearInterval(this._interval); const txt = document.getElementById('writing'); d.favorite_writing = txt ? txt.value : ''; }
+};
+
+const round4Intro = {
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: `<div class="centered"><p><strong>This is Round 4 (Recall).</strong></p><p>Press space to begin.</p></div>`,
+  choices: [' ']
+};
+function makeRound4Trial(i){
+  const pair = imagePairsRound3[i];
+  return {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
+    choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
+    data: { round: 4 },
+    on_finish: function(d){ const c = (d.response===0) ? "A" : "B"; d.choice_label = c; d.chosen_image = (d.response===0) ? pair.A : pair.B; d.correct = (c === round3Choices[i]) ? 1 : 0; d.round3_choice_for_pair = round3Choices[i]; }
+  };
+}
+
+/**************** SQUARED TASK (full restored with instructions and fixes) ****************/
 function getSquaredTimeline() {
   // local scope & constants
   const PRACTICE_MS = 30000;
