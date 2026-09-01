@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <link rel="stylesheet" href="jspsych/jspsych.css" />
-  <!-- NOTE: squared.css is loaded dynamically only while the squared task runs. Removed global include to avoid style collisions. -->
+  <!-- squared.css will be injected dynamically to avoid style collisions -->
 
   <script src="jspsych/jspsych.js"></script>
 
-  <!-- Plugins required by the page and squared tasks -->
+  <!-- Required plugins -->
   <script src="jspsych/plugin-fullscreen.js"></script>
   <script src="jspsych/plugin-survey-text.js"></script>
   <script src="jspsych/plugin-survey-multi-choice.js"></script>
@@ -23,97 +23,22 @@
     body { background:#fafafa; font-family: Arial, sans-serif; color:#111; }
     .centered { max-width:900px; margin:0 auto; padding:24px; line-height:1.45; }
     .question-title { font-size:22px; font-weight:600; margin-bottom:16px; }
-
-    .image-choice-container {
-      display:flex;
-      justify-content:center;
-      gap:40px;
-      flex-wrap:wrap;
-      margin-top:18px;
-    }
-
-    .choice-img {
-      max-width:360px;
-      max-height:320px;
-      border:2px solid #ddd;
-      border-radius:6px;
-    }
-
-    .vertical-btn {
-      display:block;
-      width:700px;
-      max-width:90%;
-      margin:10px auto;
-      text-align:left;
-      padding:12px;
-    }
-
-    .incorrect-banner {
-      font-size:30px;
-      font-weight:700;
-      color:#b00020;
-      text-align:center;
-      margin:16px 0 24px;
-    }
-
-    /* Feedback banner: positive/green */
-    .feedback-banner {
-      font-size:30px;
-      font-weight:700;
-      color:#006400; /* darkgreen */
-      text-align:center;
-      margin:16px 0 24px;
-    }
-
-    .press-space { text-align:center; margin-top:24px; }
-
-    .break-box {
-      display:flex;
-      gap:24px;
-      align-items:flex-start;
-      justify-content:space-between;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
-
-    textarea#music,
-    textarea#writing {
-      width:100%;
-      min-height:160px;
-      font-size:16px;
-      padding:12px;
-      border:2px solid #ccc;
-      border-radius:6px;
-      resize:vertical;
-    }
-
-    .countdown {
-      flex:0 0 220px;
-      font-size:18px;
-      border:2px solid #ccc;
-      border-radius:6px;
-      padding:12px;
-      height:56px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background:#fff;
-    }
+    .choice-img { max-width:360px; max-height:320px; border:2px solid #ddd; border-radius:6px; }
+    .incorrect-banner { font-size:30px; font-weight:700; color:#b00020; text-align:center; margin:16px 0 24px; }
+    .feedback-banner { font-size:30px; font-weight:700; color:#006400; text-align:center; margin:16px 0 24px; }
+    .break-box { display:flex; gap:24px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-top:10px; }
+    textarea#music, textarea#writing { width:100%; min-height:160px; font-size:16px; padding:12px; border:2px solid #ccc; border-radius:6px; resize:vertical; }
+    .countdown { flex:0 0 220px; font-size:18px; border:2px solid #ccc; border-radius:6px; padding:12px; height:56px; display:flex; align-items:center; justify-content:center; background:#fff; }
   </style>
 </head>
 
 <body>
-<!-- make the container focusable so keyboard trials reliably receive keypresses -->
 <div id="jspsych-target" tabindex="0"></div>
 
 <script>
-// Global error handlers to surface silent issues
-window.addEventListener('error', e => {
-  console.error('GLOBAL ERROR:', e.message, e.filename + ':' + e.lineno);
-});
-window.addEventListener('unhandledrejection', e => {
-  console.error('UNHANDLED PROMISE REJECTION:', e.reason);
-});
+// Global error handlers
+window.addEventListener('error', e => console.error('GLOBAL ERROR:', e.message, e.filename + ':' + e.lineno));
+window.addEventListener('unhandledrejection', e => console.error('UNHANDLED PROMISE REJECTION:', e.reason));
 
 console.log('Starting experiment script...');
 
@@ -124,10 +49,8 @@ const BREAK_SECONDS = 120;
 const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
 
 /**************** INIT ****************/
-// Expose the instance globally so you can inspect/run it from DevTools
 window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 window._jsPsychInstance = window.jsPsych;
-
 jsPsych.data.addProperties({ version: VERSION });
 
 /**************** DYNAMIC CSS HELPERS ****************/
@@ -139,13 +62,12 @@ function loadCSS(href){
   return link;
 }
 function unloadCSS(link){
-  if(link && link.parentNode){ link.parentNode.removeChild(link); }
+  if(link && link.parentNode) link.parentNode.removeChild(link);
 }
 
 /**************** PAYLOAD BUILDER ****************/
 function buildSummaryPayload() {
   const all = jsPsych.data.get().values();
-
   const r1 = all.filter(d => d.round === 1);
   const r2 = all.filter(d => d.round === 2);
   const r3 = all.filter(d => d.round === 3);
@@ -158,7 +80,7 @@ function buildSummaryPayload() {
 
   const r2_correct_arr = r2.map(d => Number(d.correct || 0));
   const r2_correct = r2_correct_arr.join(',');
-  const r2_total = r2_correct_arr.reduce((a, b) => a + b, 0);
+  const r2_total = r2_correct_arr.reduce((a,b)=>a+b,0);
 
   const r3_correct_arr = r3.map(d => Number(d.correct || 0));
   const r3_correct = r3_correct_arr.join(',');
@@ -177,13 +99,8 @@ function buildSummaryPayload() {
     try {
       const mainFilter = jsPsych.data.get().filter({ task: taskName, practice: 0, timeout: 0 });
       const lastRow = mainFilter.last(1).values()[0] || {};
-      return {
-        score_final: lastRow.score_final || '',
-        meanrt_final: mainFilter.select('rt').mean() || ''
-      };
-    } catch (e) {
-      return { score_final:'', meanrt_final: '' };
-    }
+      return { score_final: lastRow.score_final || '', meanrt_final: mainFilter.select('rt').mean() || '' };
+    } catch (e) { return { score_final:'', meanrt_final: '' }; }
   }
 
   const stroopSummary = getTaskSummary('stroop');
@@ -192,33 +109,20 @@ function buildSummaryPayload() {
 
   const breakRow = all.find(d => d.favorite_music !== undefined);
   const music = breakRow ? breakRow.favorite_music : "";
-  const music_short = music.length > 150 ? music.slice(0, 150) : music;
-
+  const music_short = music.length > 150 ? music.slice(0,150) : music;
   const break2Row = all.find(d => d.favorite_writing !== undefined);
   const writing = break2Row ? break2Row.favorite_writing : "";
-  const writing_short = writing.length > 150 ? writing.slice(0, 150) : writing;
-
+  const writing_short = writing.length > 150 ? writing.slice(0,150) : writing;
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
 
   return {
-    r1_choices,
-    r2_choices,
-    r3_choices,
-    r4_choices,
-    r2_correct,
-    r2_total: String(r2_total),
-    r3_correct,
-    r3_total: String(r3_total),
-    r4_correct,
-    r4_total: String(r4_total),
-    rt_r1,
-    rt_r2,
-    rt_r3,
-    rt_r4,
-    music_short,
-    writing_short,
-    reading_time,
+    r1_choices, r2_choices, r3_choices, r4_choices,
+    r2_correct, r2_total: String(r2_total),
+    r3_correct, r3_total: String(r3_total),
+    r4_correct, r4_total: String(r4_total),
+    rt_r1, rt_r2, rt_r3, rt_r4,
+    music_short, writing_short, reading_time,
     stroop_score: String(stroopSummary.score_final || ''),
     stroop_meanrt: String(stroopSummary.meanrt_final || ''),
     flanker_score: String(flankerSummary.score_final || ''),
@@ -273,11 +177,9 @@ const imagePairsRound3 = [
 
 const round1Choices = [null,null,null,null];
 const round3Choices = [null,null,null,null];
-const round3Answers = [null, null, null, null];
+const round3Answers = [null,null,null,null];
 
-function imgChoice(src, alt) {
-  return `<img class="choice-img" src="${src}" alt="${alt}">`;
-}
+function imgChoice(src, alt) { return `<img class="choice-img" src="${src}" alt="${alt}">`; }
 
 /**************** ROUNDS UI ****************/
 const intro1 = {
@@ -302,7 +204,7 @@ const intro2 = {
   on_finish: d => d.reading_time = d.rt
 };
 
-function makeRound1Trial(i){
+function makeRound1Trial(i) {
   const pair = imagePairs[i];
   const q = round1Questions[i];
   return {
@@ -321,15 +223,9 @@ function makeRound1Trial(i){
 
 const incorrectFeedback = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div>
-    <div class="press-space">Press space to continue.</div>
-  </div>`,
-  choices:[' ']
+  stimulus: `<div class="centered"><div class="incorrect-banner">YOU ANSWERED THIS QUESTION INCORRECT!</div><div class="press-space">Press space to continue.</div></div>`,
+  choices: [' ']
 };
-
-let breakIntervalId=null;
 
 const breakScreen = {
   type: jsPsychHtmlButtonResponse,
@@ -338,35 +234,28 @@ const breakScreen = {
     <p>Thanks for answering those initial questions. Right now, take a short breather.</p>
     <p><strong>Tell us: what is your favorite music to listen to?</strong></p>
     <p>Please take two minutes and write your answer in the textbox below.</p>
-
     <div class="break-box">
-      <div style="flex:1;">
-        <textarea id="music" placeholder="Type your answer here..."></textarea>
-      </div>
+      <div style="flex:1;"><textarea id="music" placeholder="Type your answer here..."></textarea></div>
       <div class="countdown" id="countdown">2:00</div>
     </div>
-  </div>
-  `,
+  </div>`,
   choices: ['Submit'],
   button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown');
     let total = BREAK_SECONDS;
-    function formatTime(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
-    el.textContent = formatTime(total);
-    breakIntervalId = setInterval(()=>{
+    el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    const id = setInterval(()=>{
       total--;
-      el.textContent = formatTime(Math.max(total,0));
-      if(total<=0){
-        clearInterval(breakIntervalId);
-        breakIntervalId = null;
-        btn.disabled = false;
-      }
+      el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`;
+      if(total<=0){ clearInterval(id); btn.disabled=false; }
     },1000);
+    // store interval to clear if necessary
+    this._breakIntervalId = id;
   },
   on_finish: function(d){
-    if(breakIntervalId){ clearInterval(breakIntervalId); breakIntervalId = null; }
+    if(this._breakIntervalId) clearInterval(this._breakIntervalId);
     const txt = document.getElementById('music');
     d.favorite_music = txt ? txt.value : '';
   }
@@ -374,16 +263,11 @@ const breakScreen = {
 
 const round2Intro = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <p><strong>This is Round 2.</strong></p>
-    <p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p>
-    <p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p>
-  </div>`,
-  choices:[' ']
+  stimulus: `<div class="centered"><p><strong>This is Round 2.</strong></p><p>Based on what you learned ...</p><p style="text-align:center;"><strong>Press space to begin.</strong></p></div>`,
+  choices: [' ']
 };
 
-function makeRound2Trial(i){
+function makeRound2Trial(i) {
   const pair = imagePairs[i];
   return {
     type: jsPsychHtmlButtonResponse,
@@ -391,7 +275,7 @@ function makeRound2Trial(i){
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     data: { round: 2 },
     on_finish: function(d){
-      const choiceLabel = (d.response === 0) ? "A" : "B";
+      const choiceLabel = (d.response===0) ? "A" : "B";
       const r1Choice = round1Choices[i];
       const correct = (ROUND2_CORRECT_RULE === 'different') ? (choiceLabel !== r1Choice) : (choiceLabel === r1Choice);
       d.choice_label = choiceLabel;
@@ -404,16 +288,11 @@ function makeRound2Trial(i){
 
 const round3Intro = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <p><strong>This is Round 3.</strong></p>
-    <p>This round uses a different set of images and will be scored separately. When you are ready, press space to begin.</p>
-    <p style="text-align:center;"><strong>Press space to begin Round 3.</strong></p>
-  </div>`,
-  choices:[' ']
+  stimulus: `<div class="centered"><p><strong>This is Round 3.</strong></p><p>...Press space to begin Round 3.</p></div>`,
+  choices: [' ']
 };
 
-function makeRound3Trial(i){
+function makeRound3Trial(i) {
   const pair = imagePairsRound3[i];
   return {
     type: jsPsychHtmlButtonResponse,
@@ -426,26 +305,16 @@ function makeRound3Trial(i){
       d.chosen_image = (d.response === 0) ? pair.A : pair.B;
       round3Choices[i] = c;
       const key = round3Answers[i];
-      if(key === 'A' || key === 'B'){
-        d.correct = (c === key) ? 1 : 0;
-      } else {
-        d.correct = null;
-      }
+      d.correct = (key === 'A' || key === 'B') ? (c === key ? 1 : 0) : null;
     }
   };
 }
 
 const positiveFeedback = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div>
-    <div class="press-space">Press space to continue.</div>
-  </div>`,
-  choices:[' ']
+  stimulus: `<div class="centered"><div class="feedback-banner">YOU ANSWERED THIS QUESTION CORRECT!</div><div class="press-space">Press space to continue.</div></div>`,
+  choices: [' ']
 };
-
-let break2IntervalId = null;
 
 const break2Screen = {
   type: jsPsychHtmlButtonResponse,
@@ -453,36 +322,27 @@ const break2Screen = {
   <div class="centered">
     <p>Thanks — before the final recall round, please take a short writing break.</p>
     <p><strong>Write briefly about a recent experience you enjoyed.</strong></p>
-    <p>Please take two minutes and write your answer in the textbox below.</p>
-
     <div class="break-box">
-      <div style="flex:1;">
-        <textarea id="writing" placeholder="Type your answer here..."></textarea>
-      </div>
+      <div style="flex:1;"><textarea id="writing" placeholder="Type your answer here..."></textarea></div>
       <div class="countdown" id="countdown2">2:00</div>
     </div>
-  </div>
-  `,
+  </div>`,
   choices: ['Submit'],
   button_html: '<button class="jspsych-btn" type="button" disabled>%choice%</button>',
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown2');
     let total = BREAK_SECONDS;
-    function formatTime(s){ return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
-    el.textContent = formatTime(total);
-    break2IntervalId = setInterval(()=>{
+    el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
+    const id = setInterval(()=>{
       total--;
-      el.textContent = formatTime(Math.max(total,0));
-      if(total<=0){
-        clearInterval(break2IntervalId);
-        break2IntervalId = null;
-        btn.disabled = false;
-      }
+      el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`;
+      if(total<=0){ clearInterval(id); btn.disabled=false; }
     },1000);
+    this._break2IntervalId = id;
   },
   on_finish: function(d){
-    if(break2IntervalId){ clearInterval(break2IntervalId); break2IntervalId = null; }
+    if(this._break2IntervalId) clearInterval(this._break2IntervalId);
     const txt = document.getElementById('writing');
     d.favorite_writing = txt ? txt.value : '';
   }
@@ -490,16 +350,11 @@ const break2Screen = {
 
 const round4Intro = {
   type: jsPsychHtmlKeyboardResponse,
-  stimulus: `
-  <div class="centered">
-    <p><strong>This is Round 4 (Recall).</strong></p>
-    <p>Now we will ask you to recall which image you chose earlier in Round 3 for each pair. Select the image you remember picking in Round 3.</p>
-    <p style="text-align:center;"><strong>Press space to begin Round 4.</strong></p>
-  </div>`,
-  choices:[' ']
+  stimulus: `<div class="centered"><p><strong>This is Round 4 (Recall).</strong></p><p>Press space to begin.</p></div>`,
+  choices: [' ']
 };
 
-function makeRound4Trial(i){
+function makeRound4Trial(i) {
   const pair = imagePairsRound3[i];
   return {
     type: jsPsychHtmlButtonResponse,
@@ -516,9 +371,8 @@ function makeRound4Trial(i){
   };
 }
 
-/**************** SQUARED TASK (embedded full tasks) ****************/
+/**************** SQUARED TASK (complete embedded) ****************/
 function getSquaredTimeline() {
-  // Local scope for squared tasks
   const practice_duration = 30000;
   const main_duration = 90000;
 
@@ -544,7 +398,7 @@ function getSquaredTimeline() {
   const rarr = "squared/rarr.PNG";
   const larr = "squared/larr.PNG";
 
-  // STROOP
+  // STIMULI arrays copied from original squared.js (same as earlier)
   const stimuli_stroop = [
     {stim: "RED", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#0000FF", resp2: "RED", resp2color: "#ff0302", correct_response: 1, condition: 1},
     {stim: "RED", stimcolor: "#ff0302", resp1: "RED", resp1color: "#ff0302", resp2: "BLUE", resp2color: "#0000FF", correct_response: 0, condition: 1},
@@ -564,12 +418,400 @@ function getSquaredTimeline() {
     {stim: "BLUE", stimcolor: "#ff0302", resp1: "BLUE", resp1color: "#ff0302", resp2: "RED", resp2color: "#0000FF", correct_response: 1, condition: 4}
   ];
 
-  const items_stroop = Array.from(Array(16).keys());
-  const practice_stroop = jsPsych.randomization.sampleWithReplacement(items_stroop, 100);
-  const main_stroop = jsPsych.randomization.sampleWithReplacement(items_stroop, 500);
+  const stimuli_flanker = [
+    {stim: al, stimsign: "<<<<<", resp1: ar, resp1sign: ">>>>>", resp2: al, resp2sign: "<<<<<", correct_response: 1, condition: 1},
+    {stim: al, stimsign: "<<<<<", resp1: al, resp1sign: "<<<<<", resp2: ar, resp2sign: ">>>>>", correct_response: 0, condition: 1},
+    {stim: ar, stimsign: ">>>>>", resp1: ar, resp1sign: ">>>>>", resp2: al, resp2sign: "<<<<<", correct_response: 0, condition: 1},
+    {stim: ar, stimsign: ">>>>>", resp1: al, resp1sign: "<<<<<", resp2: ar, resp2sign: ">>>>>", correct_response: 1, condition: 1},
+    {stim: al, stimsign: "<<<<<", resp1: ml_fr, resp1sign: ">><>>", resp2: mr_fl, resp2sign: "<<><<", correct_response: 0, condition: 2},
+    {stim: al, stimsign: "<<<<<", resp1: mr_fl, resp1sign: "<<><<", resp2: ml_fr, resp2sign: ">><>>", correct_response: 1, condition: 2},
+    {stim: ar, stimsign: ">>>>>", resp1: ml_fr, resp1sign: ">><>>", resp2: mr_fl, resp2sign: "<<><<", correct_response: 1, condition: 2},
+    {stim: ar, stimsign: ">>>>>", resp1: mr_fl, resp1sign: "<<><<", resp2: ml_fr, resp2sign: ">><>>", correct_response: 0, condition: 2},
+    {stim: mr_fl, stimsign: "<<><<", resp1: al, resp1sign: "<<<<<", resp2: ar, resp2sign: ">>>>>", correct_response: 0, condition: 3},
+    {stim: mr_fl, stimsign: "<<><<", resp1: ar, resp1sign: ">>>>>", resp2: al, resp2sign: "<<<<<", correct_response: 1, condition: 3},
+    {stim: ml_fr, stimsign: ">><>>", resp1: al, resp1sign: "<<<<<", resp2: ar, resp2sign: ">>>>>", correct_response: 1, condition: 3},
+    {stim: ml_fr, stimsign: ">><>>", resp1: ar, resp1sign: ">>>>>", resp2: al, resp2sign: "<<<<<", correct_response: 0, condition: 3},
+    {stim: mr_fl, stimsign: "<<><<", resp1: mr_fl, resp1sign: "<<><<", resp2: ml_fr, resp2sign: ">><>>", correct_response: 1, condition: 4},
+    {stim: mr_fl, stimsign: "<<><<", resp1: ml_fr, resp1sign: ">><>>", resp2: mr_fl, resp2sign: "<<><<", correct_response: 0, condition: 4},
+    {stim: ml_fr, stimsign: ">><>>", resp1: mr_fl, resp1sign: "<<><<", resp2: ml_fr, resp2sign: ">><>>", correct_response: 0, condition: 4},
+    {stim: ml_fr, stimsign: ">><>>", resp1: ml_fr, resp1sign: ">><>>", resp2: mr_fl, resp2sign: "<<><<", correct_response: 1, condition: 4}
+  ];
 
-  function display_stroop(stimulusIndex) {
-    const stim = stimuli_stroop[stimulusIndex].stim;
-    const stimcolor = stimuli_stroop[stimulusIndex].stimcolor;
-    return "<div style='font-size: 10pt; display:flex; align-items:center;'>Time left<div id='countdownbar' style='margin:0 12px;'><div id='timeleft'></div></div><span style='font-size:54pt; font-weight:900; color:" + stimcolor + ";'>" + stim + "</span></div>";
+  const stimuli_simon = [
+    {stim: larr, stimsign: "<", loc: "left", resp1: "LEFT", resp2: "RIGHT", correct_response: 0, condition: 1},
+    {stim: rarr, stimsign: ">", loc: "right", resp1: "LEFT", resp2: "RIGHT", correct_response: 1, condition: 1},
+    {stim: larr, stimsign: "<", loc: "left", resp1: "RIGHT", resp2: "LEFT", correct_response: 1, condition: 2},
+    {stim: rarr, stimsign: ">", loc: "right", resp1: "RIGHT", resp2: "LEFT", correct_response: 0, condition: 2},
+    {stim: larr, stimsign: "<", loc: "right", resp1: "LEFT", resp2: "RIGHT", correct_response: 0, condition: 3},
+    {stim: rarr, stimsign: ">", loc: "left", resp1: "LEFT", resp2: "RIGHT", correct_response: 1, condition: 3},
+    {stim: larr, stimsign: "<", loc: "right", resp1: "RIGHT", resp2: "LEFT", correct_response: 1, condition: 4},
+    {stim: rarr, stimsign: ">", loc: "left", resp1: "RIGHT", resp2: "LEFT", correct_response: 0, condition: 4}
+  ];
+
+  // helper: create blocks — these are local factories returning timeline fragments plus conclusions
+  function createStroopBlock() {
+    const items = Array.from(Array(16).keys());
+    const practice_order = jsPsych.randomization.sampleWithReplacement(items, 100);
+    const main_order = jsPsych.randomization.sampleWithReplacement(items, 500);
+
+    function display_stroop(idx) {
+      const s = stimuli_stroop[idx];
+      return `<div style='font-size:10pt; display:flex; align-items:center;'>Time left<div id='countdownbar' style='margin:0 12px;'><div id='timeleft'></div></div><span style='font-size:54pt;font-weight:900;color:${s.stimcolor}'>${s.stim}</span></div>`;
+    }
+
+    // build trial & feedback templates using closures for each block
+    function makeBlock(orderArray) {
+      let block_trial_count = 0;
+      let block_time_limit, block_start, end_timer, timeout=0, total_score=0, practice_flag = 1;
+
+      const trial = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_stroop(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_stroop[orderArray[block_trial_count]].resp1, stimuli_stroop[orderArray[block_trial_count]].resp2]; },
+        button_html: function() {
+          const resp1color = stimuli_stroop[orderArray[block_trial_count]].resp1color;
+          const resp2color = stimuli_stroop[orderArray[block_trial_count]].resp2color;
+          return [`<button style="font-weight:700;color:${resp1color}">%choice%</button>`,`<button style="font-weight:700;color:${resp2color}">%choice%</button>`];
+        },
+        on_start: function() {
+          if(block_trial_count===0) {
+            block_time_limit = practice_flag===1 ? practice_duration : main_duration;
+            block_start = Date.now();
+            end_timer = setTimeout(function(){ timeout=1; block_trial_count=0; jsPsych.endCurrentTimeline(); }, block_time_limit);
+          }
+        },
+        on_load: function(){ countdown_local(block_start, block_time_limit); },
+        on_finish: function(data){
+          data.task="stroop";
+          data.practice=practice_flag;
+          data.item=orderArray[block_trial_count];
+          data.stim=stimuli_stroop[orderArray[block_trial_count]].stim;
+          data.stimcolor=stimuli_stroop[orderArray[block_trial_count]].stimcolor;
+          data.resp1=stimuli_stroop[orderArray[block_trial_count]].resp1;
+          data.resp2=stimuli_stroop[orderArray[block_trial_count]].resp2;
+          data.correct_response=stimuli_stroop[orderArray[block_trial_count]].correct_response;
+          data.condition=stimuli_stroop[orderArray[block_trial_count]].condition;
+          data.accuracy = data.response == data.correct_response ? 1 : 0;
+          data.timeout = timeout;
+          if(timeout===0) total_score = data.accuracy==1 ? total_score+1 : total_score-1;
+          data.score_after_trial = total_score;
+        }
+      };
+
+      const feedback = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_stroop(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_stroop[orderArray[block_trial_count]].resp1, stimuli_stroop[orderArray[block_trial_count]].resp2]; },
+        button_html: function(){
+          const last = jsPsych.data.get().last(1).values()[0] || {};
+          const resp = last.response;
+          const correct_response = last.correct_response;
+          let fb1 = '<div style="height:28px;"></div>';
+          let fb2 = '<div style="height:28px;"></div>';
+          if(resp===0) fb1 = (correct_response==0) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          if(resp===1) fb2 = (correct_response==1) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          return [`<button style="font-weight:700;">${fb1}%choice%</button>`,`<button style="font-weight:700;">${fb2}%choice%</button>`];
+        },
+        on_start: function(){ block_trial_count++; },
+        trial_duration: 500,
+        response_ends_trial: false
+      };
+
+      // wrapper timeline that loops infinitely until jsPsych.endCurrentTimeline triggers at timeout
+      const block_timeline = { timeline: [trial, feedback], loop_function: function(){ return true; } };
+
+      // Provide a way to set practice/main flag externally
+      block_timeline.setPracticeFlag = function(val){ practice_flag = val; };
+
+      // expose total_score via closure when concluding
+      block_timeline.getTotal = function(){ return total_score; };
+
+      return block_timeline;
+    } // end makeBlock
+
+    // assemble practice and main blocks
+    const practiceBlock = makeBlock(practice_order); practiceBlock.setPracticeFlag(1);
+    const mainBlock = makeBlock(main_order); mainBlock.setPracticeFlag(0);
+
+    const intro1 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Stroop practice: 30 seconds</p></div>", choices:["Begin practice"] };
+    const prepPractice = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Ready?</p></div>", choices:["Start practice"] };
+    const intro2 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Stroop main: 90 seconds</p></div>", choices:["I understand"] };
+    const prepMain = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Start main</p></div>", choices:["Start task"], on_finish: function(){ /* nothing */ } };
+
+    const conclusion = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: function(){ return `<div class='centered'><p>You completed Stroop practice+main.</p><p>Click Continue.</p></div>`; },
+      choices: ["Continue"],
+      on_start: function(){
+        // compute and add summary fields for practice/main into data
+        jsPsych.data.get().filter({task:"stroop", practice:1}).addToAll({
+          score_final: jsPsych.data.get().filter({task:"stroop", practice:1, timeout:0}).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({task:"stroop", practice:1, timeout:0}).select('rt').mean() || ''
+        });
+        jsPsych.data.get().filter({task:"stroop", practice:0}).addToAll({
+          score_final: jsPsych.data.get().filter({task:"stroop", practice:0, timeout:0}).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({task:"stroop", practice:0, timeout:0}).select('rt').mean() || ''
+        });
+      }
+    };
+
+    return [intro1, prepPractice, practiceBlock, intro2, prepMain, mainBlock, conclusion];
+  } // end createStroopBlock
+
+  function createFlankerBlock() {
+    const items = Array.from(Array(16).keys());
+    const practice_order = jsPsych.randomization.sampleWithReplacement(items, 100);
+    const main_order = jsPsych.randomization.sampleWithReplacement(items, 500);
+
+    function display_flanker(idx) {
+      const stim = stimuli_flanker[idx].stim;
+      return `<div style='display:flex;align-items:center;'>Time left<div id='countdownbar' style='margin:0 12px;'><div id='timeleft'></div></div><img src='${stim}' width='290'></div>`;
+    }
+
+    function makeBlock(orderArray) {
+      let block_trial_count=0, block_time_limit, block_start, end_timer, timeout=0, total_score=0, practice_flag=1;
+
+      const trial = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_flanker(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_flanker[orderArray[block_trial_count]].resp1, stimuli_flanker[orderArray[block_trial_count]].resp2]; },
+        button_html: function(){ return ['<button>%choice%</button>','<button>%choice%</button>']; },
+        on_start: function(){
+          if(block_trial_count===0){
+            block_time_limit = practice_flag===1 ? practice_duration : main_duration;
+            block_start = Date.now();
+            end_timer = setTimeout(function(){ timeout=1; block_trial_count=0; jsPsych.endCurrentTimeline(); }, block_time_limit);
+          }
+        },
+        on_load: function(){ countdown_local(block_start, block_time_limit); },
+        on_finish: function(data){
+          data.task="flanker";
+          data.practice=practice_flag;
+          data.item=orderArray[block_trial_count];
+          data.stim=stimuli_flanker[orderArray[block_trial_count]].stimsign;
+          data.resp1=stimuli_flanker[orderArray[block_trial_count]].resp1sign;
+          data.resp2=stimuli_flanker[orderArray[block_trial_count]].resp2sign;
+          data.correct_response=stimuli_flanker[orderArray[block_trial_count]].correct_response;
+          data.condition=stimuli_flanker[orderArray[block_trial_count]].condition;
+          data.accuracy = data.response == data.correct_response ? 1 : 0;
+          data.timeout = timeout;
+          if(timeout===0) total_score = data.accuracy==1 ? total_score+1 : total_score-1;
+          data.score_after_trial = total_score;
+        }
+      };
+
+      const feedback = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_flanker(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_flanker[orderArray[block_trial_count]].resp1, stimuli_flanker[orderArray[block_trial_count]].resp2]; },
+        button_html: function(){
+          const last = jsPsych.data.get().last(1).values()[0] || {};
+          const resp = last.response;
+          const correct_response = last.correct_response;
+          let fb1 = '<div style="height:28px;"></div>', fb2 = '<div style="height:28px;"></div>';
+          if(resp===0) fb1 = (correct_response==0) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          if(resp===1) fb2 = (correct_response==1) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          return ['<button>'+fb1+'%choice%</button>','<button>'+fb2+'%choice%</button>'];
+        },
+        on_start: function(){ block_trial_count++; },
+        trial_duration: 500,
+        response_ends_trial: false
+      };
+
+      const timelineBlock = { timeline: [trial, feedback], loop_function: function(){ return true; } };
+      timelineBlock.setPracticeFlag = function(val){ practice_flag = val; };
+      timelineBlock.getTotal = function(){ return total_score; };
+      return timelineBlock;
+    }
+
+    const practiceBlock = makeBlock(practice_order); practiceBlock.setPracticeFlag(1);
+    const mainBlock = makeBlock(main_order); mainBlock.setPracticeFlag(0);
+
+    const intro1 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Flanker practice: 30s</p></div>", choices:["Begin practice"] };
+    const prepPractice = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Ready?</p></div>", choices:["Start practice"] };
+    const intro2 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Flanker main: 90s</p></div>", choices:["I understand"] };
+    const prepMain = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Start main</p></div>", choices:["Start task"] };
+
+    const conclusion = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: function(){ return `<div class='centered'><p>You completed Flanker practice+main.</p><p>Click Continue.</p></div>`; },
+      choices: ["Continue"],
+      on_start: function(){
+        jsPsych.data.get().filter({ task:"flanker", practice:1 }).addToAll({
+          score_final: jsPsych.data.get().filter({ task:"flanker", practice:1, timeout:0 }).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({ task:"flanker", practice:1, timeout:0 }).select('rt').mean() || ''
+        });
+        jsPsych.data.get().filter({ task:"flanker", practice:0 }).addToAll({
+          score_final: jsPsych.data.get().filter({ task:"flanker", practice:0, timeout:0 }).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({ task:"flanker", practice:0, timeout:0 }).select('rt').mean() || ''
+        });
+      }
+    };
+
+    return [intro1, prepPractice, practiceBlock, intro2, prepMain, mainBlock, conclusion];
+  } // end createFlankerBlock
+
+  function createSimonBlock() {
+    const items = Array.from(Array(8).keys());
+    const practice_order = jsPsych.randomization.sampleWithReplacement(items, 100);
+    const main_order = jsPsych.randomization.sampleWithReplacement(items, 500);
+
+    function display_simon(idx) {
+      const s = stimuli_simon[idx];
+      return `<div style='display:flex;align-items:center;'><div style='margin-right:12px;'>Time left<div id='countdownbar' style='margin:0 12px;'><div id='timeleft'></div></div></div><span style='display:flex;justify-content:${s.loc};'><img src='${s.stim}' height='70'></span></div>`;
+    }
+
+    function makeBlock(orderArray) {
+      let block_trial_count=0, block_time_limit, block_start, end_timer, timeout=0, total_score=0, practice_flag=1;
+
+      const trial = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_simon(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_simon[orderArray[block_trial_count]].resp1, stimuli_simon[orderArray[block_trial_count]].resp2]; },
+        button_html: function(){ return ['<button>%choice%</button>','<button>%choice%</button>']; },
+        on_start: function(){
+          if(block_trial_count===0){ block_time_limit = practice_flag===1 ? practice_duration : main_duration; block_start = Date.now(); end_timer = setTimeout(()=>{ timeout=1; block_trial_count=0; jsPsych.endCurrentTimeline(); }, block_time_limit); }
+        },
+        on_load: function(){ countdown_local(block_start, block_time_limit); },
+        on_finish: function(data){
+          data.task="simon";
+          data.practice=practice_flag;
+          data.item=orderArray[block_trial_count];
+          data.stim=stimuli_simon[orderArray[block_trial_count]].stimsign;
+          data.location=stimuli_simon[orderArray[block_trial_count]].loc;
+          data.resp1=stimuli_simon[orderArray[block_trial_count]].resp1;
+          data.resp2=stimuli_simon[orderArray[block_trial_count]].resp2;
+          data.correct_response=stimuli_simon[orderArray[block_trial_count]].correct_response;
+          data.condition=stimuli_simon[orderArray[block_trial_count]].condition;
+          data.accuracy = data.response == data.correct_response ? 1 : 0;
+          data.timeout = timeout;
+          if(timeout===0) total_score = data.accuracy==1 ? total_score+1 : total_score-1;
+          data.score_after_trial = total_score;
+        }
+      };
+
+      const feedback = {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: function(){ return display_simon(orderArray[block_trial_count]); },
+        choices: function(){ return [stimuli_simon[orderArray[block_trial_count]].resp1, stimuli_simon[orderArray[block_trial_count]].resp2]; },
+        button_html: function(){
+          const last = jsPsych.data.get().last(1).values()[0] || {};
+          const resp = last.response;
+          const correct_response = last.correct_response;
+          let fb1 = '<div style="height:28px;"></div>', fb2 = '<div style="height:28px;"></div>';
+          if(resp===0) fb1 = (correct_response==0) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          if(resp===1) fb2 = (correct_response==1) ? '<div style="color:#1ED760">&#10004;</div>' : '<div style="color:red">&#10008;</div>';
+          return ['<button>'+fb1+'%choice%</button>','<button>'+fb2+'%choice%</button>'];
+        },
+        on_start: function(){ block_trial_count++; },
+        trial_duration: 500,
+        response_ends_trial: false
+      };
+
+      const timelineBlock = { timeline: [trial, feedback], loop_function: function(){ return true; } };
+      timelineBlock.setPracticeFlag = function(val){ practice_flag = val; };
+      timelineBlock.getTotal = function(){ return total_score; };
+      return timelineBlock;
+    }
+
+    const practiceBlock = makeBlock(practice_order); practiceBlock.setPracticeFlag(1);
+    const mainBlock = makeBlock(main_order); mainBlock.setPracticeFlag(0);
+
+    const intro1 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Simon practice: 30s</p></div>", choices:["Begin practice"] };
+    const prepPractice = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Ready?</p></div>", choices:["Start practice"] };
+    const intro2 = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Simon main: 90s</p></div>", choices:["I understand"] };
+    const prepMain = { type: jsPsychHtmlButtonResponse, stimulus:"<div class='centered'><p>Start main</p></div>", choices:["Start task"] };
+
+    const conclusion = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: function(){ return `<div class='centered'><p>You completed Simon practice+main.</p><p>Click Continue.</p></div>`; },
+      choices: ["Continue"],
+      on_start: function(){
+        jsPsych.data.get().filter({ task:"simon", practice:1 }).addToAll({
+          score_final: jsPsych.data.get().filter({ task:"simon", practice:1, timeout:0 }).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({ task:"simon", practice:1, timeout:0 }).select('rt').mean() || ''
+        });
+        jsPsych.data.get().filter({ task:"simon", practice:0 }).addToAll({
+          score_final: jsPsych.data.get().filter({ task:"simon", practice:0, timeout:0 }).last(1).values()[0]?.score_after_trial || '',
+          meanrt_final: jsPsych.data.get().filter({ task:"simon", practice:0, timeout:0 }).select('rt').mean() || ''
+        });
+      }
+    };
+
+    return [intro1, prepPractice, practiceBlock, intro2, prepMain, mainBlock, conclusion];
+  } // end createSimonBlock
+
+  // preload and dynamic css load/unload trials
+  const preloadSquared = { type: jsPsychPreload, images: [al, ar, ml_fr, mr_fl, rarr, larr] };
+  let _squaredCSSLink = null;
+  const loadCssTrial = { type: jsPsychHtmlKeyboardResponse, stimulus:'', choices: "NO_KEYS", trial_duration: 10, on_start: function(){ _squaredCSSLink = loadCSS('squared/squared.css'); console.log('DEBUG: loaded squared.css', _squaredCSSLink && _squaredCSSLink.href); } };
+  const unloadCssTrial = { type: jsPsychHtmlKeyboardResponse, stimulus:'', choices: "NO_KEYS", trial_duration: 10, on_finish: function(){ unloadCSS(_squaredCSSLink); console.log('DEBUG: unloaded squared.css'); } };
+
+  // build task sequences
+  const stroopSeq = createStroopBlock();
+  const flankerSeq = createFlankerBlock();
+  const simonSeq = createSimonBlock();
+
+  // flatten and return timeline
+  return [
+    loadCssTrial,
+    preloadSquared,
+    ...stroopSeq,
+    ...flankerSeq,
+    ...simonSeq,
+    unloadCssTrial
+  ];
+} // end getSquaredTimeline
+
+/**************** FINAL SCREEN ****************/
+const finalScreen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<div class="centered" style="text-align:center;"><p><strong>Thank you!</strong></p><p>Click continue to return to Qualtrics.</p></div>`,
+  choices: ['Continue'],
+  on_finish: function(){
+    const payload = buildSummaryPayload();
+    const params = new URLSearchParams(window.location.search);
+    const q = new URLSearchParams({ PROLIFIC_PID: params.get('PROLIFIC_PID')||'', STUDY_ID: params.get('STUDY_ID')||'', SESSION_ID: params.get('SESSION_ID')||'', version: VERSION, ...payload });
+    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
   }
+};
+
+/**************** TIMELINE ****************/
+const timeline = [];
+
+timeline.push(intro1, intro2);
+for(let i=0;i<4;i++){ timeline.push(makeRound1Trial(i)); timeline.push(incorrectFeedback); }
+timeline.push(breakScreen, round2Intro);
+for(let i=0;i<4;i++){ timeline.push(makeRound2Trial(i)); }
+
+// Insert squared once between R2 and R3
+timeline.push(...getSquaredTimeline());
+
+timeline.push(round3Intro);
+for(let i=0;i<4;i++){ timeline.push(makeRound3Trial(i)); timeline.push(positiveFeedback); }
+timeline.push(break2Screen);
+timeline.push(round4Intro);
+for(let i=0;i<4;i++){ timeline.push(makeRound4Trial(i)); }
+
+timeline.push(finalScreen);
+
+// debug trial at start (click to continue) and focus container
+const debugTrial = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<div class="centered"><p style="font-size:20px;"><strong>DEBUG: jsPsych started</strong></p><p>If you see this, jsPsych is running.</p><p>Click Continue.</p></div>`,
+  choices: ['Continue'],
+  button_html: '<button class="jspsych-btn">%choice%</button>',
+  on_start: function(){ const t = document.getElementById('jspsych-target'); if(t && t.focus) { t.focus(); console.log('DEBUG: focused jspsych-target'); } console.log('DEBUG: debugTrial on_start'); },
+  on_finish: function(){ console.log('DEBUG: debugTrial on_finish'); }
+};
+timeline.unshift(debugTrial);
+
+// focus fallback
+const targetEl = document.getElementById('jspsych-target');
+if(targetEl && targetEl.focus) { targetEl.focus(); console.log('DEBUG: focused jspsych-target before run'); }
+
+console.log('DEBUG: calling jsPsych.run');
+jsPsych.run(timeline);
+</script>
+</body>
+</html>
