@@ -1,34 +1,147 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Colors and Arrows</title>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
-        <link href="squared.css", rel="stylesheet" type="text/css"> 
+<head>
+  <meta charset="utf-8">
+  <title>Colors and Arrows</title>
 
-        <!-- If calling on plugins and jsPsych *locally* use the following scripts; pay attention to where the jspsych directory in your console or experiment builder and update location accordingly-->
-        <script src="../jspsych/dist/jspsych.js"></script>
-        <script src="../jspsych/dist/plugin-call-function.js"></script>
-        <script src="../jspsych/dist/plugin-html-keyboard-response.js"></script>
-        <script src="../jspsych/dist/plugin-html-button-response.js"></script>
-        <script src="../jspsych/dist/plugin-fullscreen.js"></script> 
-        <script src="../jspsych/dist/plugin-survey-text.js"></script>
-        <script src="../jspsych/dist/plugin-survey-multi-choice.js"></script>
-        <script src="../jspsych/dist/plugin-preload.js"></script>
-        <link href="../jspsych/dist/jspsych.css", rel="stylesheet" type="text/css">
+  <!-- jQuery (original) -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
 
-        <!-- If calling on plugins and jsPsych online using CDN-hosted scripts-->
-        <!-- <script src="https://unpkg.com/jspsych@7.3.1"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2"></script>
-        <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2"></script>
-        <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css"> -->
+  <!-- squared stylesheet (fixed syntax) -->
+  <link href="squared.css" rel="stylesheet" type="text/css">
 
-    </head>
-    <body>
-    </body>
-    <script src="squared.js">// Contains main jsPsych code for squared tasks </script>
+  <!-- Local jsPsych (update paths if needed) -->
+  <script src="../jspsych/dist/jspsych.js"></script>
+  <script src="../jspsych/dist/plugin-call-function.js"></script>
+  <script src="../jspsych/dist/plugin-html-keyboard-response.js"></script>
+  <script src="../jspsych/dist/plugin-html-button-response.js"></script>
+  <script src="../jspsych/dist/plugin-fullscreen.js"></script>
+  <script src="../jspsych/dist/plugin-survey-text.js"></script>
+  <script src="../jspsych/dist/plugin-survey-multi-choice.js"></script>
+  <script src="../jspsych/dist/plugin-preload.js"></script>
+  <link href="../jspsych/dist/jspsych.css" rel="stylesheet" type="text/css">
+
+  <!-- Uncomment these if you prefer CDN versions instead of local builds -->
+  <!--
+  <script src="https://unpkg.com/jspsych@7.3.1"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2"></script>
+  <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
+  -->
+</head>
+<body>
+  <!-- The squared experiment will render into its own container as before -->
+  <div id="squared-root"></div>
+
+  <!-- Your main squared script (keeps existing behavior) -->
+  <script src="squared.js"></script>
+
+  <!-- Integration helper: posts summary to parent and polls for completion if needed -->
+  <script>
+  /*
+    Integration helper for parent iframe.
+
+    - Call window._postSquaredSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw)
+      from your squared.js when you compute final metrics (recommended).
+
+    - If you don't call it explicitly, the polling fallback will attempt to detect completion
+      by inspecting jsPsych data for each task and will send a best-effort summary.
+  */
+
+  function postSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw) {
+    const msg = {
+      type: 'squared_done',
+      stroopSummary: stroopSummary || {},
+      flankerSummary: flankerSummary || {},
+      simonSummary: simonSummary || {},
+      raw: raw || null
+    };
+
+    // Prefer same-origin posting; change second arg if the parent is on a different origin.
+    try {
+      window.parent.postMessage(msg, window.location.origin);
+      console.log('DEBUG(squared): posted summary to parent (origin)', window.location.origin, msg);
+    } catch (err) {
+      // fallback to wildcard (use only for local testing)
+      window.parent.postMessage(msg, '*');
+      console.warn('DEBUG(squared): posted summary to parent with wildcard origin (fallback)', err, msg);
+    }
+  }
+
+  // Expose manual helper so squared.js can call it
+  window._postSquaredSummaryToParent = postSummaryToParent;
+
+  // Polling fallback: detects when jsPsych has summary rows for stroop/flanker/simon (practice:0)
+  (function watchForCompletion() {
+    const POLL_MS = 800;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 600; // ~8 minutes
+
+    console.log('DEBUG(squared): starting completion watcher (polling every ' + POLL_MS + 'ms)');
+
+    const timer = setInterval(() => {
+      attempts++;
+      if (attempts > MAX_ATTEMPTS) {
+        clearInterval(timer);
+        console.warn('DEBUG(squared): polling timed out after', attempts, 'attempts');
+        return;
+      }
+
+      // Try to locate the jsPsych data API in this child context
+      const jp = window.jsPsych || window.jspsych || null;
+      if (!jp || typeof jp.data === 'undefined') {
+        // not ready yet
+        return;
+      }
+
+      try {
+        // For jsPsych v7: jp.data.get().values() — returns array of rows
+        // Fallback: if jp.data.get is present and supports .values()
+        const rows = jp.data && jp.data.get ? jp.data.get().values() : (jp.data && jp.data.values ? jp.data.values() : null);
+        if (!rows || !Array.isArray(rows)) return;
+
+        // Check for non-empty summary-like rows for each task (practice:0 rows containing score_after_trial or score_final)
+        const findSummary = (task) => {
+          return rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
+        };
+
+        const stroopRows = findSummary('stroop');
+        const flankerRows = findSummary('flanker');
+        const simonRows = findSummary('simon');
+
+        // If we have at least one summary row for any task, build best-effort summaries and post
+        if (stroopRows.length || flankerRows.length || simonRows.length) {
+          function makeSummary(rows, task) {
+            if (!rows || !rows.length) return { score_final: '', meanrt_final: '' };
+            const last = rows[rows.length - 1];
+            // compute mean RT for non-timeout rows if possible
+            try {
+              const relevant = rows.filter(r => r.rt !== undefined && r.timeout !== 1).map(r => Number(r.rt)).filter(r => !isNaN(r));
+              const meanRt = relevant.length ? (relevant.reduce((a,b)=>a+b,0) / relevant.length) : '';
+              return { score_final: last.score_after_trial !== undefined ? last.score_after_trial : (last.score_final || ''), meanrt_final: meanRt };
+            } catch (e) {
+              return { score_final: last.score_after_trial || last.score_final || '', meanrt_final: '' };
+            }
+          }
+
+          const sSummary = makeSummary(stroopRows, 'stroop');
+          const fSummary = makeSummary(flankerRows, 'flanker');
+          const smSummary = makeSummary(simonRows, 'simon');
+
+          clearInterval(timer);
+          console.log('DEBUG(squared): detected completion — posting summaries to parent', { sSummary, fSummary, smSummary });
+          postSummaryToParent(sSummary, fSummary, smSummary, null);
+        }
+      } catch (err) {
+        console.warn('DEBUG(squared): error while polling for completion', err);
+      }
+    }, POLL_MS);
+  })();
+  </script>
+</body>
 </html>
