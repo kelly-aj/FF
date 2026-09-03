@@ -1127,30 +1127,54 @@ var simon_task = {timeline: [intro_simon, threetwoone, block_simon_practice, pre
 // FINALIZE EXPERIMENT CONTEXT  /////////
 /////////////////////////////////////////
 
-// Ending screen
+// Ending screen (patched to post summary to parent)
 var conclusion = {
-    type: jsPsychHtmlKeyboardResponse,
-    stimulus: function() { return '<p style="font-size:25px;"> You earned the following points in the three tasks: <br>' +
-	          '<p> Colors Task: ' + total_stroop + ' points</p>' +
-			  '<p> Multiple Arrows Task: ' + total_flanker + ' points</p>' +
-			  '<p> Single Arrow Task: ' + total_simon + ' points</p>' +
-			  '<p style="font-size:25px;">You are now finished with this set of tasks.</p>' +
-              '<p style="font-size:25px;"><b> Press any key to exit.</b></p>' }
-}
+  type: jsPsychHtmlKeyboardResponse,
+  stimulus: function() {
+    return '<p style="font-size:25px;"> You earned the following points in the three tasks: <br>' +
+      '<p> Colors Task: ' + total_stroop + ' points</p>' +
+      '<p> Multiple Arrows Task: ' + total_flanker + ' points</p>' +
+      '<p> Single Arrow Task: ' + total_simon + ' points</p>' +
+      '<p style="font-size:25px;">You are now finished with this set of tasks.</p>' +
+      '<p style="font-size:25px;"><b> Press any key to exit.</b></p>';
+  },
+  on_finish: function() {
+    // Build summary objects (best-effort)
+    try {
+      // mean RTs for practice=0, timeout=0 rows (if present)
+      const stroop_rows = jsPsych.data.get().filter({ task: 'stroop', practice: 0, timeout: 0 });
+      const flanker_rows = jsPsych.data.get().filter({ task: 'flanker', practice: 0, timeout: 0 });
+      const simon_rows = jsPsych.data.get().filter({ task: 'simon', practice: 0, timeout: 0 });
 
-var exit_fullscreen = {
-	type: jsPsychFullscreen,
-	fullscreen_mode: false,
-	delay_after: 0,
-	on_finish: function(){jsPsych.endExperiment();}
+      const meanrt = rows => {
+        try {
+          const arr = rows.select('rt').values.filter(v => v !== null && v !== undefined && !isNaN(Number(v))).map(Number);
+          if (!arr || arr.length === 0) return '';
+          return arr.reduce((a,b)=>a+b,0) / arr.length;
+        } catch (e) { return ''; }
+      };
+
+      const stroopSummary = { score_final: (typeof total_stroop !== 'undefined' ? total_stroop : ''), meanrt_final: meanrt(stroop_rows) || '' };
+      const flankerSummary = { score_final: (typeof total_flanker !== 'undefined' ? total_flanker : ''), meanrt_final: meanrt(flanker_rows) || '' };
+      const simonSummary  = { score_final: (typeof total_simon !== 'undefined' ? total_simon : ''), meanrt_final: meanrt(simon_rows) || '' };
+
+      // Try the helper injected by squared.html first
+      if (window._postSquaredSummaryToParent && typeof window._postSquaredSummaryToParent === 'function') {
+        try {
+          window._postSquaredSummaryToParent(stroopSummary, flankerSummary, simonSummary, null);
+          console.log('DEBUG(squared): posted summary via window._postSquaredSummaryToParent', {stroopSummary, flankerSummary, simonSummary});
+        } catch (err) {
+          console.warn('DEBUG(squared): _postSquaredSummaryToParent threw error, falling back to postMessage', err);
+          window.parent.postMessage({ type: 'squared_done', stroopSummary, flankerSummary, simonSummary, raw: null }, '*');
+        }
+      } else {
+        // Fallback: postMessage directly (use '*' for local testing; change to parent origin for production)
+        window.parent.postMessage({ type: 'squared_done', stroopSummary, flankerSummary, simonSummary, raw: null }, '*');
+        console.log('DEBUG(squared): posted summary to parent via fallback postMessage', {stroopSummary, flankerSummary, simonSummary});
+      }
+    } catch (e) {
+      console.error('DEBUG(squared): error while building/posting summaries', e);
+      // Still proceed — parent polling fallback (if present) may pick up jsPsych data
+    }
   }
-
-
-// PUTTING IT ALL TOGETHER
-var preload = {
-	type: jsPsychPreload,
-	images: [al, ar, ml_fr, mr_fl, rarr, larr]
-}
-
-timeline.push(preload, get_participant_id, get_location, welcome, enter_fullscreen, stroop_task, flanker_task, simon_task, conclusion, exit_fullscreen);
-jsPsych.run(timeline);
+};
