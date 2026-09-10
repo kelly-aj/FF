@@ -2,46 +2,32 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Colors and Arrows</title>
-
-  <!-- jQuery -->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+  <title>Colors and Arrows (squared)</title>
 
   <!-- squared stylesheet -->
   <link href="squared.css" rel="stylesheet" type="text/css">
 
-  <!-- LOCAL jsPsych (update paths if your jspsych folder is elsewhere) -->
-  <!-- These paths assume: project_root/jspsych/jspsych.js and project_root/jspsych/plugin-*.js -->
-  <script src="../jspsych/jspsych.js"></script>
-  <script src="../jspsych/plugin-call-function.js"></script>
-  <script src="../jspsych/plugin-html-keyboard-response.js"></script>
-  <script src="../jspsych/plugin-html-button-response.js"></script>
-  <script src="../jspsych/plugin-fullscreen.js"></script>
-  <script src="../jspsych/plugin-survey-text.js"></script>
-  <script src="../jspsych/plugin-survey-multi-choice.js"></script>
-  <script src="../jspsych/plugin-preload.js"></script>
-  <link href="../jspsych/jspsych.css" rel="stylesheet" type="text/css">
-
-  <!-- Option: use CDN versions instead of local files (uncomment if you prefer) -->
-  <!--
+  <!-- jsPsych v7 + plugins from CDN (unpkg) -->
+  <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
   <script src="https://unpkg.com/jspsych@7.3.1"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
+
+  <!-- plugins used by squared.js -->
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
   <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2"></script>
   <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
   <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2"></script>
-  <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
-  -->
+  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
+  <!-- add other plugins here if squared.js imports more -->
 </head>
 <body>
   <div id="squared-root"></div>
 
-  <!-- squared main script (your task) -->
+  <!-- Your squared task logic (keeps existing behavior). Must run after jsPsych & plugins are loaded -->
   <script src="squared.js"></script>
 
-  <!-- Integration helper: post message to parent when tasks finish (and polling fallback) -->
+  <!-- Integration helper: posts summary to parent and polling fallback -->
   <script>
   function postSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw) {
     const msg = {
@@ -55,7 +41,8 @@
       window.parent.postMessage(msg, window.location.origin);
       console.log('DEBUG(squared): posted summary to parent (origin)', window.location.origin, msg);
     } catch (err) {
-      window.parent.postMessage(msg, '*'); // fallback for local testing
+      // fallback (local testing)
+      window.parent.postMessage(msg, '*');
       console.warn('DEBUG(squared): posted summary to parent with wildcard origin (fallback)', err, msg);
     }
   }
@@ -65,17 +52,17 @@
     const POLL_MS = 800;
     let attempts = 0;
     const MAX = 600;
-    console.log('DEBUG(squared): starting completion watcher');
+    console.log('DEBUG(squared): starting completion watcher (CDN version)');
 
     const timer = setInterval(() => {
       attempts++;
       if (attempts > MAX) { clearInterval(timer); console.warn('DEBUG(squared): polling timed out'); return; }
 
-      const jp = window.jsPsych || window.jspsych || null;
+      const jp = window.jsPsych || null;
       if (!jp || typeof jp.data === 'undefined') return;
 
       try {
-        const rows = jp.data.get ? jp.data.get().values() : (jp.data && jp.data.values ? jp.data.values() : null);
+        const rows = jp.data.get().values();
         if (!rows || !Array.isArray(rows)) return;
 
         const findSummary = (task) => rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
