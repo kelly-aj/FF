@@ -4,24 +4,25 @@
   <meta charset="utf-8">
   <title>Colors and Arrows</title>
 
-  <!-- jQuery (original) -->
+  <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
 
-  <!-- squared stylesheet (fixed syntax) -->
+  <!-- squared stylesheet -->
   <link href="squared.css" rel="stylesheet" type="text/css">
 
-  <!-- Local jsPsych (update paths if needed) -->
-  <script src="../jspsych/dist/jspsych.js"></script>
-  <script src="../jspsych/dist/plugin-call-function.js"></script>
-  <script src="../jspsych/dist/plugin-html-keyboard-response.js"></script>
-  <script src="../jspsych/dist/plugin-html-button-response.js"></script>
-  <script src="../jspsych/dist/plugin-fullscreen.js"></script>
-  <script src="../jspsych/dist/plugin-survey-text.js"></script>
-  <script src="../jspsych/dist/plugin-survey-multi-choice.js"></script>
-  <script src="../jspsych/dist/plugin-preload.js"></script>
-  <link href="../jspsych/dist/jspsych.css" rel="stylesheet" type="text/css">
+  <!-- LOCAL jsPsych (update paths if your jspsych folder is elsewhere) -->
+  <!-- These paths assume: project_root/jspsych/jspsych.js and project_root/jspsych/plugin-*.js -->
+  <script src="../jspsych/jspsych.js"></script>
+  <script src="../jspsych/plugin-call-function.js"></script>
+  <script src="../jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="../jspsych/plugin-html-button-response.js"></script>
+  <script src="../jspsych/plugin-fullscreen.js"></script>
+  <script src="../jspsych/plugin-survey-text.js"></script>
+  <script src="../jspsych/plugin-survey-multi-choice.js"></script>
+  <script src="../jspsych/plugin-preload.js"></script>
+  <link href="../jspsych/jspsych.css" rel="stylesheet" type="text/css">
 
-  <!-- Uncomment these if you prefer CDN versions instead of local builds -->
+  <!-- Option: use CDN versions instead of local files (uncomment if you prefer) -->
   <!--
   <script src="https://unpkg.com/jspsych@7.3.1"></script>
   <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
@@ -35,24 +36,13 @@
   -->
 </head>
 <body>
-  <!-- The squared experiment will render into its own container as before -->
   <div id="squared-root"></div>
 
-  <!-- Your main squared script (keeps existing behavior) -->
+  <!-- squared main script (your task) -->
   <script src="squared.js"></script>
 
-  <!-- Integration helper: posts summary to parent and polls for completion if needed -->
+  <!-- Integration helper: post message to parent when tasks finish (and polling fallback) -->
   <script>
-  /*
-    Integration helper for parent iframe.
-
-    - Call window._postSquaredSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw)
-      from your squared.js when you compute final metrics (recommended).
-
-    - If you don't call it explicitly, the polling fallback will attempt to detect completion
-      by inspecting jsPsych data for each task and will send a best-effort summary.
-  */
-
   function postSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw) {
     const msg = {
       type: 'squared_done',
@@ -61,85 +51,53 @@
       simonSummary: simonSummary || {},
       raw: raw || null
     };
-
-    // Prefer same-origin posting; change second arg if the parent is on a different origin.
     try {
       window.parent.postMessage(msg, window.location.origin);
       console.log('DEBUG(squared): posted summary to parent (origin)', window.location.origin, msg);
     } catch (err) {
-      // fallback to wildcard (use only for local testing)
-      window.parent.postMessage(msg, '*');
+      window.parent.postMessage(msg, '*'); // fallback for local testing
       console.warn('DEBUG(squared): posted summary to parent with wildcard origin (fallback)', err, msg);
     }
   }
-
-  // Expose manual helper so squared.js can call it
   window._postSquaredSummaryToParent = postSummaryToParent;
 
-  // Polling fallback: detects when jsPsych has summary rows for stroop/flanker/simon (practice:0)
   (function watchForCompletion() {
     const POLL_MS = 800;
     let attempts = 0;
-    const MAX_ATTEMPTS = 600; // ~8 minutes
-
-    console.log('DEBUG(squared): starting completion watcher (polling every ' + POLL_MS + 'ms)');
+    const MAX = 600;
+    console.log('DEBUG(squared): starting completion watcher');
 
     const timer = setInterval(() => {
       attempts++;
-      if (attempts > MAX_ATTEMPTS) {
-        clearInterval(timer);
-        console.warn('DEBUG(squared): polling timed out after', attempts, 'attempts');
-        return;
-      }
+      if (attempts > MAX) { clearInterval(timer); console.warn('DEBUG(squared): polling timed out'); return; }
 
-      // Try to locate the jsPsych data API in this child context
       const jp = window.jsPsych || window.jspsych || null;
-      if (!jp || typeof jp.data === 'undefined') {
-        // not ready yet
-        return;
-      }
+      if (!jp || typeof jp.data === 'undefined') return;
 
       try {
-        // For jsPsych v7: jp.data.get().values() — returns array of rows
-        // Fallback: if jp.data.get is present and supports .values()
-        const rows = jp.data && jp.data.get ? jp.data.get().values() : (jp.data && jp.data.values ? jp.data.values() : null);
+        const rows = jp.data.get ? jp.data.get().values() : (jp.data && jp.data.values ? jp.data.values() : null);
         if (!rows || !Array.isArray(rows)) return;
 
-        // Check for non-empty summary-like rows for each task (practice:0 rows containing score_after_trial or score_final)
-        const findSummary = (task) => {
-          return rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
-        };
+        const findSummary = (task) => rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
+        const s = findSummary('stroop'), f = findSummary('flanker'), sm = findSummary('simon');
 
-        const stroopRows = findSummary('stroop');
-        const flankerRows = findSummary('flanker');
-        const simonRows = findSummary('simon');
-
-        // If we have at least one summary row for any task, build best-effort summaries and post
-        if (stroopRows.length || flankerRows.length || simonRows.length) {
-          function makeSummary(rows, task) {
-            if (!rows || !rows.length) return { score_final: '', meanrt_final: '' };
-            const last = rows[rows.length - 1];
-            // compute mean RT for non-timeout rows if possible
+        if (s.length || f.length || sm.length) {
+          function makeSummary(rows) {
+            if (!rows || !rows.length) return { score_final:'', meanrt_final: '' };
+            const last = rows[rows.length-1];
+            let meanrt = '';
             try {
-              const relevant = rows.filter(r => r.rt !== undefined && r.timeout !== 1).map(r => Number(r.rt)).filter(r => !isNaN(r));
-              const meanRt = relevant.length ? (relevant.reduce((a,b)=>a+b,0) / relevant.length) : '';
-              return { score_final: last.score_after_trial !== undefined ? last.score_after_trial : (last.score_final || ''), meanrt_final: meanRt };
-            } catch (e) {
-              return { score_final: last.score_after_trial || last.score_final || '', meanrt_final: '' };
-            }
+              const rts = rows.filter(r=> r.rt!==undefined && Number(r.timeout)!==1).map(r=>Number(r.rt)).filter(x=>!isNaN(x));
+              if (rts.length) meanrt = rts.reduce((a,b)=>a+b,0)/rts.length;
+            } catch(e){}
+            return { score_final: last.score_after_trial || last.score_final || '', meanrt_final: meanrt };
           }
-
-          const sSummary = makeSummary(stroopRows, 'stroop');
-          const fSummary = makeSummary(flankerRows, 'flanker');
-          const smSummary = makeSummary(simonRows, 'simon');
-
           clearInterval(timer);
-          console.log('DEBUG(squared): detected completion — posting summaries to parent', { sSummary, fSummary, smSummary });
+          const sSummary = makeSummary(s), fSummary = makeSummary(f), smSummary = makeSummary(sm);
+          console.log('DEBUG(squared): detected completion — posting summaries', {sSummary,fSummary,smSummary});
           postSummaryToParent(sSummary, fSummary, smSummary, null);
         }
-      } catch (err) {
-        console.warn('DEBUG(squared): error while polling for completion', err);
-      }
+      } catch (err) { console.warn('DEBUG(squared): polling error', err); }
     }, POLL_MS);
   })();
   </script>
