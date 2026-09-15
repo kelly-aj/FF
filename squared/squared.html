@@ -7,24 +7,30 @@
   <!-- squared stylesheet -->
   <link href="squared.css" rel="stylesheet" type="text/css">
 
-  <!-- jsPsych v7 + plugins from CDN (unpkg) -->
-  <link href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css" rel="stylesheet" type="text/css">
-  <script src="https://unpkg.com/jspsych@7.3.1"></script>
+  <!-- jsPsych + plugins UMD builds (explicit dist paths) -->
+  <link href="https://unpkg.com/jspsych@7.3.1/dist/css/jspsych.css" rel="stylesheet" type="text/css">
+  <script src="https://unpkg.com/jspsych@7.3.1/dist/jspsych.js"></script>
 
-  <!-- plugins used by squared.js -->
-  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
-  <!-- add other plugins here if squared.js imports more -->
+  <!-- UMD plugins (dist builds) -->
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2/dist/plugin-preload.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2/dist/plugin-html-button-response.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2/dist/plugin-html-keyboard-response.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2/dist/plugin-fullscreen.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2/dist/plugin-survey-text.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2/dist/plugin-survey-multi-choice.js"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2/dist/plugin-call-function.js"></script>
+  <!-- Add other /dist plugin URLs here if squared.js needs them -->
+
+  <style>
+    /* small safety: ensure the body and root are visible inside the iframe */
+    html,body{height:100%;margin:0;padding:0;background:white;}
+    #squared-root{min-height:100vh; background:transparent;}
+  </style>
 </head>
 <body>
   <div id="squared-root"></div>
 
-  <!-- Your squared task logic (keeps existing behavior). Must run after jsPsych & plugins are loaded -->
+  <!-- Your squared task logic (must appear after jsPsych & plugins are loaded) -->
   <script src="squared.js"></script>
 
   <!-- Integration helper: posts summary to parent and polling fallback -->
@@ -41,33 +47,29 @@
       window.parent.postMessage(msg, window.location.origin);
       console.log('DEBUG(squared): posted summary to parent (origin)', window.location.origin, msg);
     } catch (err) {
-      // fallback (local testing)
       window.parent.postMessage(msg, '*');
       console.warn('DEBUG(squared): posted summary to parent with wildcard origin (fallback)', err, msg);
     }
   }
   window._postSquaredSummaryToParent = postSummaryToParent;
 
+  // Polling fallback: detect when summary rows appear in jsPsych data and post
   (function watchForCompletion() {
     const POLL_MS = 800;
     let attempts = 0;
     const MAX = 600;
-    console.log('DEBUG(squared): starting completion watcher (CDN version)');
+    console.log('DEBUG(squared): starting completion watcher (UMD plugin build)');
 
     const timer = setInterval(() => {
       attempts++;
       if (attempts > MAX) { clearInterval(timer); console.warn('DEBUG(squared): polling timed out'); return; }
-
       const jp = window.jsPsych || null;
       if (!jp || typeof jp.data === 'undefined') return;
-
       try {
         const rows = jp.data.get().values();
         if (!rows || !Array.isArray(rows)) return;
-
         const findSummary = (task) => rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
         const s = findSummary('stroop'), f = findSummary('flanker'), sm = findSummary('simon');
-
         if (s.length || f.length || sm.length) {
           function makeSummary(rows) {
             if (!rows || !rows.length) return { score_final:'', meanrt_final: '' };
