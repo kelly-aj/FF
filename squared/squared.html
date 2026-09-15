@@ -7,11 +7,10 @@
   <!-- squared stylesheet -->
   <link href="squared.css" rel="stylesheet" type="text/css">
 
-  <!-- jsPsych + plugins UMD builds (explicit dist paths) -->
+  <!-- jsPsych + UMD plugins (dist builds) -->
   <link href="https://unpkg.com/jspsych@7.3.1/dist/css/jspsych.css" rel="stylesheet" type="text/css">
   <script src="https://unpkg.com/jspsych@7.3.1/dist/jspsych.js"></script>
 
-  <!-- UMD plugins (dist builds) -->
   <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2/dist/plugin-preload.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2/dist/plugin-html-button-response.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2/dist/plugin-html-keyboard-response.js"></script>
@@ -19,19 +18,68 @@
   <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2/dist/plugin-survey-text.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2/dist/plugin-survey-multi-choice.js"></script>
   <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2/dist/plugin-call-function.js"></script>
-  <!-- Add other /dist plugin URLs here if squared.js needs them -->
 
   <style>
-    /* small safety: ensure the body and root are visible inside the iframe */
+    /* make the iframe content visible while debugging */
     html,body{height:100%;margin:0;padding:0;background:white;}
-    #squared-root{min-height:100vh; background:transparent;}
+    #squared-root{min-height:100vh;background:transparent;}
+    /* optional: small debug banner */
+    #__squared_debug { position:fixed; top:6px; right:6px; z-index:9999; background:#fff; color:#000; padding:6px 8px; border:1px solid #ccc; font-size:12px; opacity:0.9; }
   </style>
 </head>
 <body>
   <div id="squared-root"></div>
+  <div id="__squared_debug">squared: waiting to load</div>
 
-  <!-- Your squared task logic (must appear after jsPsych & plugins are loaded) -->
-  <script src="squared.js"></script>
+  <!-- Dynamically load squared.js only after jsPsych's init function is available -->
+  <script>
+  (function loadSquaredWhenReady(){
+    const DEBUG = true;
+    function log(){ if(DEBUG) console.log.apply(console, arguments); }
+    function showDebug(msg){ const el=document.getElementById('__squared_debug'); if(el) el.textContent = 'squared: ' + msg; }
+
+    function injectSquaredScript(){
+      if (document.getElementById('squared-loader')) return;
+      const s = document.createElement('script');
+      s.id = 'squared-loader';
+      s.src = 'squared.js';
+      s.onload = function(){ log('squared.js loaded'); showDebug('squared.js loaded'); };
+      s.onerror = function(e){ console.error('Failed to load squared.js', e); showDebug('failed to load squared.js'); };
+      document.body.appendChild(s);
+      showDebug('squared.js injected');
+    }
+
+    // If initJsPsych already exists, inject immediately
+    if (typeof initJsPsych === 'function') {
+      log('initJsPsych is ready — injecting squared.js now');
+      showDebug('initJsPsych ready');
+      injectSquaredScript();
+      return;
+    }
+
+    // Otherwise poll briefly for readiness, then inject when available
+    let attempts = 0;
+    const maxAttempts = 100; // ~5 seconds at 50ms intervals
+    const pollInterval = 50;
+    const intervalId = setInterval(function(){
+      attempts++;
+      if (typeof initJsPsych === 'function') {
+        clearInterval(intervalId);
+        log('Detected initJsPsych after', attempts, 'tries — injecting squared.js');
+        showDebug('initJsPsych detected');
+        injectSquaredScript();
+        return;
+      }
+      if (attempts % 10 === 0) log('waiting for initJsPsych... attempt', attempts);
+      if (attempts >= maxAttempts) {
+        clearInterval(intervalId);
+        console.warn('Timed out waiting for initJsPsych; injecting squared.js anyway (may error)');
+        showDebug('timed out waiting for initJsPsych — injecting anyway');
+        injectSquaredScript();
+      }
+    }, pollInterval);
+  })();
+  </script>
 
   <!-- Integration helper: posts summary to parent and polling fallback -->
   <script>
@@ -53,12 +101,10 @@
   }
   window._postSquaredSummaryToParent = postSummaryToParent;
 
-  // Polling fallback: detect when summary rows appear in jsPsych data and post
   (function watchForCompletion() {
     const POLL_MS = 800;
-    let attempts = 0;
-    const MAX = 600;
-    console.log('DEBUG(squared): starting completion watcher (UMD plugin build)');
+    let attempts = 0; const MAX = 600;
+    console.log('DEBUG(squared): starting completion watcher (dynamic loader)');
 
     const timer = setInterval(() => {
       attempts++;
