@@ -1231,4 +1231,35 @@ console.log(
   'timeline entries'
 );
 
+};
+
+// Preload the image assets used by the squared tasks.
+var preload = {
+  type: jsPsychPreload,
+  images: [
+    al,
+    ar,
+    ml_fr,
+    mr_fl,
+    rarr,
+    larr
+  ]
+};
+
+// Start the embedded squared experiment.
+timeline.push(
+  preload,
+  welcome,
+  stroop_task,
+  flanker_task,
+  simon_task,
+  conclusion
+);
+
+console.log(
+  "DEBUG(squared): starting embedded squared timeline",
+  timeline.length,
+  "timeline entries"
+);
+
 jsPsych.run(timeline);
