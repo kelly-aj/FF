@@ -1,185 +1,181 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Colors and Arrows (squared)</title>
+  <title>Colors and Arrows</title>
 
-  <!-- squared stylesheet -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+
+  <!-- Squared task stylesheet -->
   <link href="squared.css" rel="stylesheet" type="text/css">
 
-  <!-- jsPsych + UMD plugins (dist builds) -->
-  <link href="https://unpkg.com/jspsych@7.3.1/dist/css/jspsych.css" rel="stylesheet" type="text/css">
-  <script src="https://unpkg.com/jspsych@7.3.1/dist/jspsych.js"></script>
+  <!-- Local jsPsych files.
+       squared.html is in /squared, so ../jspsych points to /jspsych. -->
+  <script src="../jspsych/jspsych.js"></script>
+  <script src="../jspsych/plugin-call-function.js"></script>
+  <script src="../jspsych/plugin-html-keyboard-response.js"></script>
+  <script src="../jspsych/plugin-html-button-response.js"></script>
+  <script src="../jspsych/plugin-fullscreen.js"></script>
+  <script src="../jspsych/plugin-survey-text.js"></script>
+  <script src="../jspsych/plugin-survey-multi-choice.js"></script>
+  <script src="../jspsych/plugin-preload.js"></script>
 
-  <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.2/dist/plugin-preload.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2/dist/plugin-html-button-response.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.2/dist/plugin-html-keyboard-response.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.2/dist/plugin-fullscreen.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2/dist/plugin-survey-text.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2/dist/plugin-survey-multi-choice.js"></script>
-  <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2/dist/plugin-call-function.js"></script>
+  <link href="../jspsych/jspsych.css" rel="stylesheet" type="text/css">
 
   <style>
-    /* make the iframe content visible while debugging */
-    html,body{height:100%;margin:0;padding:0;background:white;}
-    #squared-root{min-height:100vh;background:transparent;}
-    #__squared_debug { position:fixed; top:6px; right:6px; z-index:9999; background:#fff; color:#000; padding:6px 8px; border:1px solid #ccc; font-size:12px; opacity:0.95; }
+    /*
+      Keep the original squared appearance:
+      black background and white jsPsych text.
+    */
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #squared-root {
+      min-height: 100vh;
+    }
   </style>
 </head>
+
 <body>
   <div id="squared-root"></div>
-  <div id="__squared_debug">squared: waiting to load</div>
 
-  <!-- Robust loader: waits for jsPsych + plugin registration before injecting squared.js -->
+  <!-- This helper must be defined before squared.js runs. -->
   <script>
-  (function robustLoadSquared(){
-    const DEBUG = true;
-    const debugEl = document.getElementById('__squared_debug');
-    function dlog(){ if(DEBUG) console.log.apply(console, arguments); }
-    function show(msg){ if(debugEl) debugEl.textContent = 'squared: ' + msg; dlog('DEBUG(squared):', msg); }
+    (function installParentIntegration() {
+      let hasPosted = false;
 
-    // shim initJsPsych if squared.js expects it
-    if (typeof window.initJsPsych !== 'function') {
-      window.initJsPsych = function(initOptions) {
-        try {
-          if (window.jsPsych && typeof window.jsPsych.init === 'function') {
-            dlog('initJsPsych shim: calling jsPsych.init');
-            try {
-              const res = window.jsPsych.init(initOptions);
-              return res || window.jsPsych;
-            } catch(e) {
-              dlog('initJsPsych shim: jsPsych.init threw', e);
-              return window.jsPsych;
-            }
-          } else if (window.jsPsych) {
-            dlog('initJsPsych shim: returning global jsPsych');
-            return window.jsPsych;
-          } else {
-            dlog('initJsPsych shim: jsPsych not ready; returning undefined');
-            return undefined;
-          }
-        } catch(e){
-          console.warn('initJsPsych shim error', e);
-          return undefined;
+      window._postSquaredSummaryToParent = function(
+        stroopSummary,
+        flankerSummary,
+        simonSummary,
+        raw
+      ) {
+        if (hasPosted) {
+          return;
         }
+
+        hasPosted = true;
+
+        const message = {
+          type: "squared_done",
+          stroopSummary: stroopSummary || {},
+          flankerSummary: flankerSummary || {},
+          simonSummary: simonSummary || {},
+          raw: raw || null
+        };
+
+        console.log(
+          "DEBUG(squared): posting completion message to parent",
+          message
+        );
+
+        // The parent and iframe are same-origin on GitHub Pages.
+        window.parent.postMessage(message, window.location.origin);
       };
-      dlog('initJsPsych shim installed');
-      show('initJsPsych shim installed');
-    } else {
-      dlog('initJsPsych already present');
-      show('initJsPsych present');
-    }
-
-    function injectSquaredScript(){
-      if (document.getElementById('squared-loader')) return;
-      const s = document.createElement('script');
-      s.id = 'squared-loader';
-      s.src = 'squared.js';
-      s.onload = function(){ dlog('squared.js loaded'); show('squared.js loaded'); };
-      s.onerror = function(e){ console.error('Failed to load squared.js', e); show('failed to load squared.js'); };
-      document.body.appendChild(s);
-      show('squared.js injected');
-    }
-
-    // readiness test: check jsPsych global exists AND plugins registered OR
-    // check some common plugin globals (fallback)
-    function pluginsReady() {
-      try {
-        if (!window.jsPsych) return false;
-        // preferred: jsPsych.plugins has keys
-        if (window.jsPsych.plugins && Object.keys(window.jsPsych.plugins).length > 0) return true;
-        // fallback: check for known plugin globals (UMD often defines these)
-        if (typeof window.jsPsychFullscreen === 'function' || typeof window.jsPsychHtmlButtonResponse === 'function' || typeof window.jsPsychHtmlKeyboardResponse === 'function') return true;
-        return false;
-      } catch(e){ return false; }
-    }
-
-    // If already ready, inject now
-    if (pluginsReady()) {
-      dlog('Plugins already registered — injecting squared.js');
-      show('Plugins ready');
-      injectSquaredScript();
-      return;
-    }
-
-    // Poll for readiness, with a slightly longer timeout since plugin registration can be async
-    let attempts = 0;
-    const pollInterval = 100;
-    const maxAttempts = 200; // ~20 seconds
-    const intervalId = setInterval(function(){
-      attempts++;
-      if (pluginsReady()) {
-        clearInterval(intervalId);
-        dlog('Detected plugin registration after', attempts, 'attempts — injecting squared.js');
-        show('Detected plugins — injecting squared.js');
-        injectSquaredScript();
-        return;
-      }
-      if (attempts % 10 === 0) dlog('waiting for plugins to register... attempt', attempts);
-      if (attempts >= maxAttempts) {
-        clearInterval(intervalId);
-        console.warn('Timed out waiting for plugins to register; injecting squared.js anyway (may error)');
-        show('Timed out waiting for plugins — injecting anyway');
-        injectSquaredScript();
-      }
-    }, pollInterval);
-  })();
+    })();
   </script>
 
-  <!-- Integration helper: posts summary to parent and polling fallback -->
+  <!-- Run the original squared implementation unchanged. -->
+  <script src="squared.js"></script>
+
+  <!-- Fallback completion watcher. The explicit call in squared.js is preferred. -->
   <script>
-  function postSummaryToParent(stroopSummary, flankerSummary, simonSummary, raw) {
-    const msg = {
-      type: 'squared_done',
-      stroopSummary: stroopSummary || {},
-      flankerSummary: flankerSummary || {},
-      simonSummary: simonSummary || {},
-      raw: raw || null
-    };
-    try {
-      window.parent.postMessage(msg, window.location.origin);
-      console.log('DEBUG(squared): posted summary to parent (origin)', window.location.origin, msg);
-    } catch (err) {
-      window.parent.postMessage(msg, '*');
-      console.warn('DEBUG(squared): posted summary to parent with wildcard origin (fallback)', err, msg);
-    }
-  }
-  window._postSquaredSummaryToParent = postSummaryToParent;
+    (function watchForCompletion() {
+      const POLL_MS = 500;
+      const MAX_ATTEMPTS = 1200;
+      let attempts = 0;
+      let watcher;
 
-  (function watchForCompletion() {
-    const POLL_MS = 800;
-    let attempts = 0; const MAX = 600;
-    console.log('DEBUG(squared): starting completion watcher (robust loader)');
+      console.log("DEBUG(squared): completion watcher started");
 
-    const timer = setInterval(() => {
-      attempts++;
-      if (attempts > MAX) { clearInterval(timer); console.warn('DEBUG(squared): polling timed out'); return; }
-      const jp = window.jsPsych || null;
-      if (!jp || typeof jp.data === 'undefined') return;
-      try {
-        const rows = jp.data.get().values();
-        if (!rows || !Array.isArray(rows)) return;
-        const findSummary = (task) => rows.filter(r => r.task === task && Number(r.practice) === 0 && (r.score_after_trial !== undefined || r.score_final !== undefined));
-        const s = findSummary('stroop'), f = findSummary('flanker'), sm = findSummary('simon');
-        if (s.length || f.length || sm.length) {
-          function makeSummary(rows) {
-            if (!rows || !rows.length) return { score_final:'', meanrt_final: '' };
-            const last = rows[rows.length-1];
-            let meanrt = '';
-            try {
-              const rts = rows.filter(r=> r.rt!==undefined && Number(r.timeout)!==1).map(r=>Number(r.rt)).filter(x=>!isNaN(x));
-              if (rts.length) meanrt = rts.reduce((a,b)=>a+b,0)/rts.length;
-            } catch(e){}
-            return { score_final: last.score_after_trial || last.score_final || '', meanrt_final: meanrt };
-          }
-          clearInterval(timer);
-          const sSummary = makeSummary(s), fSummary = makeSummary(f), smSummary = makeSummary(sm);
-          console.log('DEBUG(squared): detected completion — posting summaries', {sSummary,fSummary,smSummary});
-          postSummaryToParent(sSummary, fSummary, smSummary, null);
+      function getRows() {
+        if (
+          !window.jsPsych ||
+          !window.jsPsych.data ||
+          typeof window.jsPsych.data.get !== "function"
+        ) {
+          return [];
         }
-      } catch (err) { console.warn('DEBUG(squared): polling error', err); }
-    }, POLL_MS);
-  })();
+
+        return window.jsPsych.data.get().values();
+      }
+
+      function getTaskRows(rows, taskName) {
+        return rows.filter(function(row) {
+          return (
+            row.task === taskName &&
+            Number(row.practice) === 0 &&
+            row.timeout === 0
+          );
+        });
+      }
+
+      function meanRT(rows) {
+        const values = rows
+          .map(row => Number(row.rt))
+          .filter(value => Number.isFinite(value));
+
+        if (values.length === 0) {
+          return "";
+        }
+
+        return values.reduce((sum, value) => sum + value, 0) / values.length;
+      }
+
+      watcher = setInterval(function() {
+        attempts++;
+
+        if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(watcher);
+          console.warn("DEBUG(squared): completion watcher timed out");
+          return;
+        }
+
+        const rows = getRows();
+
+        const stroopRows = getTaskRows(rows, "stroop");
+        const flankerRows = getTaskRows(rows, "flanker");
+        const simonRows = getTaskRows(rows, "simon");
+
+        /*
+          The original experiment has all three task conclusions before
+          the final conclusion. Require all three tasks before posting.
+        */
+        if (
+          stroopRows.length === 0 ||
+          flankerRows.length === 0 ||
+          simonRows.length === 0
+        ) {
+          return;
+        }
+
+        const stroopLast = stroopRows[stroopRows.length - 1];
+        const flankerLast = flankerRows[flankerRows.length - 1];
+        const simonLast = simonRows[simonRows.length - 1];
+
+        clearInterval(watcher);
+
+        window._postSquaredSummaryToParent(
+          {
+            score_final: stroopLast.score_final ?? stroopLast.score_after_trial ?? "",
+            meanrt_final: meanRT(stroopRows)
+          },
+          {
+            score_final: flankerLast.score_final ?? flankerLast.score_after_trial ?? "",
+            meanrt_final: meanRT(flankerRows)
+          },
+          {
+            score_final: simonLast.score_final ?? simonLast.score_after_trial ?? "",
+            meanrt_final: meanRT(simonRows)
+          },
+          null
+        );
+      }, POLL_MS);
+    })();
   </script>
 </body>
 </html>
