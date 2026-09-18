@@ -23,55 +23,51 @@
     /* make the iframe content visible while debugging */
     html,body{height:100%;margin:0;padding:0;background:white;}
     #squared-root{min-height:100vh;background:transparent;}
-    #__squared_debug { position:fixed; top:6px; right:6px; z-index:9999; background:#fff; color:#000; padding:6px 8px; border:1px solid #ccc; font-size:12px; opacity:0.9; }
+    #__squared_debug { position:fixed; top:6px; right:6px; z-index:9999; background:#fff; color:#000; padding:6px 8px; border:1px solid #ccc; font-size:12px; opacity:0.95; }
   </style>
 </head>
 <body>
   <div id="squared-root"></div>
   <div id="__squared_debug">squared: waiting to load</div>
 
-  <!-- Dynamically load squared.js only after jsPsych's init function is available (with shim) -->
+  <!-- Robust loader: waits for jsPsych + plugin registration before injecting squared.js -->
   <script>
-  (function loadSquaredWhenReady(){
+  (function robustLoadSquared(){
     const DEBUG = true;
-    function log(){ if(DEBUG) console.log.apply(console, arguments); }
-    function showDebug(msg){ const el=document.getElementById('__squared_debug'); if(el) el.textContent = 'squared: ' + msg; }
+    const debugEl = document.getElementById('__squared_debug');
+    function dlog(){ if(DEBUG) console.log.apply(console, arguments); }
+    function show(msg){ if(debugEl) debugEl.textContent = 'squared: ' + msg; dlog('DEBUG(squared):', msg); }
 
-    // Compatibility shim: provide initJsPsych if squared.js expects it
-    // - If jsPsych.init exists, call it and return the jsPsych instance (best effort).
-    // - Otherwise return the global jsPsych object if present.
-    // This prevents squared.js from throwing when it calls initJsPsych.
+    // shim initJsPsych if squared.js expects it
     if (typeof window.initJsPsych !== 'function') {
       window.initJsPsych = function(initOptions) {
         try {
           if (window.jsPsych && typeof window.jsPsych.init === 'function') {
-            log('initJsPsych shim: calling jsPsych.init with options', initOptions);
-            // call jsPsych.init if it exists; many codebases expect initJsPsych to create the instance
-            // jsPsych.init typically returns a Promise; return the global jsPsych for compatibility
+            dlog('initJsPsych shim: calling jsPsych.init');
             try {
               const res = window.jsPsych.init(initOptions);
-              // If jsPsych.init returns a promise, keep it (some scripts expect initJsPsych to return instance)
               return res || window.jsPsych;
             } catch(e) {
-              // some versions expect initJsPsych to be synchronous; fall back
-              log('initJsPsych shim: jsPsych.init threw', e);
+              dlog('initJsPsych shim: jsPsych.init threw', e);
               return window.jsPsych;
             }
           } else if (window.jsPsych) {
-            log('initJsPsych shim: returning existing jsPsych global');
+            dlog('initJsPsych shim: returning global jsPsych');
             return window.jsPsych;
           } else {
-            log('initJsPsych shim: jsPsych not ready yet, returning undefined');
+            dlog('initJsPsych shim: jsPsych not ready; returning undefined');
             return undefined;
           }
-        } catch (e) {
-          console.warn('initJsPsych shim unexpected error', e);
+        } catch(e){
+          console.warn('initJsPsych shim error', e);
           return undefined;
         }
       };
-      log('initJsPsych shim installed');
+      dlog('initJsPsych shim installed');
+      show('initJsPsych shim installed');
     } else {
-      log('initJsPsych already present, not overriding');
+      dlog('initJsPsych already present');
+      show('initJsPsych present');
     }
 
     function injectSquaredScript(){
@@ -79,38 +75,51 @@
       const s = document.createElement('script');
       s.id = 'squared-loader';
       s.src = 'squared.js';
-      s.onload = function(){ log('squared.js loaded'); showDebug('squared.js loaded'); };
-      s.onerror = function(e){ console.error('Failed to load squared.js', e); showDebug('failed to load squared.js'); };
+      s.onload = function(){ dlog('squared.js loaded'); show('squared.js loaded'); };
+      s.onerror = function(e){ console.error('Failed to load squared.js', e); show('failed to load squared.js'); };
       document.body.appendChild(s);
-      showDebug('squared.js injected');
+      show('squared.js injected');
     }
 
-    // If initJsPsych already exists as a function, inject immediately
-    if (typeof initJsPsych === 'function') {
-      log('initJsPsych detected — injecting squared.js now');
-      showDebug('initJsPsych ready');
+    // readiness test: check jsPsych global exists AND plugins registered OR
+    // check some common plugin globals (fallback)
+    function pluginsReady() {
+      try {
+        if (!window.jsPsych) return false;
+        // preferred: jsPsych.plugins has keys
+        if (window.jsPsych.plugins && Object.keys(window.jsPsych.plugins).length > 0) return true;
+        // fallback: check for known plugin globals (UMD often defines these)
+        if (typeof window.jsPsychFullscreen === 'function' || typeof window.jsPsychHtmlButtonResponse === 'function' || typeof window.jsPsychHtmlKeyboardResponse === 'function') return true;
+        return false;
+      } catch(e){ return false; }
+    }
+
+    // If already ready, inject now
+    if (pluginsReady()) {
+      dlog('Plugins already registered — injecting squared.js');
+      show('Plugins ready');
       injectSquaredScript();
       return;
     }
 
-    // Otherwise poll briefly for readiness
+    // Poll for readiness, with a slightly longer timeout since plugin registration can be async
     let attempts = 0;
-    const maxAttempts = 100; // ~5 seconds at 50ms intervals
-    const pollInterval = 50;
+    const pollInterval = 100;
+    const maxAttempts = 200; // ~20 seconds
     const intervalId = setInterval(function(){
       attempts++;
-      if (typeof initJsPsych === 'function') {
+      if (pluginsReady()) {
         clearInterval(intervalId);
-        log('Detected initJsPsych after', attempts, 'tries — injecting squared.js');
-        showDebug('initJsPsych detected');
+        dlog('Detected plugin registration after', attempts, 'attempts — injecting squared.js');
+        show('Detected plugins — injecting squared.js');
         injectSquaredScript();
         return;
       }
-      if (attempts % 10 === 0) log('waiting for initJsPsych... attempt', attempts);
+      if (attempts % 10 === 0) dlog('waiting for plugins to register... attempt', attempts);
       if (attempts >= maxAttempts) {
         clearInterval(intervalId);
-        console.warn('Timed out waiting for initJsPsych; injecting squared.js anyway (may error)');
-        showDebug('timed out waiting for initJsPsych — injecting anyway');
+        console.warn('Timed out waiting for plugins to register; injecting squared.js anyway (may error)');
+        show('Timed out waiting for plugins — injecting anyway');
         injectSquaredScript();
       }
     }, pollInterval);
@@ -140,7 +149,7 @@
   (function watchForCompletion() {
     const POLL_MS = 800;
     let attempts = 0; const MAX = 600;
-    console.log('DEBUG(squared): starting completion watcher (dynamic loader + shim)');
+    console.log('DEBUG(squared): starting completion watcher (robust loader)');
 
     const timer = setInterval(() => {
       attempts++;
