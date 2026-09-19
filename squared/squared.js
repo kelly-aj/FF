@@ -1126,94 +1126,78 @@ var simon_task = {timeline: [intro_simon, threetwoone, block_simon_practice, pre
 var conclusion = {
   type: jsPsychHtmlKeyboardResponse,
   stimulus: function() {
-    return '<p style="font-size:25px;"> You earned the following points in the three tasks: <br>' +
-      '<p> Colors Task: ' + total_stroop + ' points</p>' +
-      '<p> Multiple Arrows Task: ' + total_flanker + ' points</p>' +
-      '<p> Single Arrow Task: ' + total_simon + ' points</p>' +
+    return '<p style="font-size:25px;">You earned the following points in the three tasks:<br>' +
+      '<p>Colors Task: ' + total_stroop + ' points</p>' +
+      '<p>Multiple Arrows Task: ' + total_flanker + ' points</p>' +
+      '<p>Single Arrow Task: ' + total_simon + ' points</p>' +
       '<p style="font-size:25px;">You are now finished with this set of tasks.</p>' +
-      '<p style="font-size:25px;"><b> Press any key to exit.</b></p>';
+      '<p style="font-size:25px;"><b>Press any key to exit.</b></p>';
   },
   on_finish: function() {
-    try {
-      const stroop_rows = jsPsych.data
-        .get()
-        .filter({ task: 'stroop', practice: 0, timeout: 0 });
+    const stroop_rows = jsPsych.data
+      .get()
+      .filter({ task: 'stroop', practice: 0, timeout: 0 });
 
-      const flanker_rows = jsPsych.data
-        .get()
-        .filter({ task: 'flanker', practice: 0, timeout: 0 });
+    const flanker_rows = jsPsych.data
+      .get()
+      .filter({ task: 'flanker', practice: 0, timeout: 0 });
 
-      const simon_rows = jsPsych.data
-        .get()
-        .filter({ task: 'simon', practice: 0, timeout: 0 });
+    const simon_rows = jsPsych.data
+      .get()
+      .filter({ task: 'simon', practice: 0, timeout: 0 });
 
-      const meanrt = rows => {
-        try {
-          const values = rows
-            .select('rt')
-            .values
-            .filter(value => value !== null && value !== undefined)
-            .map(Number)
-            .filter(value => Number.isFinite(value));
+    const meanrt = rows => {
+      const values = rows
+        .select('rt')
+        .values
+        .map(Number)
+        .filter(value => Number.isFinite(value));
 
-          return values.length
-            ? values.reduce((sum, value) => sum + value, 0) / values.length
-            : '';
-        } catch (error) {
-          return '';
-        }
-      };
+      return values.length
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : '';
+    };
 
-      const stroopSummary = {
-        score_final: total_stroop,
-        meanrt_final: meanrt(stroop_rows)
-      };
+    const stroopSummary = {
+      score_final: total_stroop,
+      meanrt_final: meanrt(stroop_rows)
+    };
 
-      const flankerSummary = {
-        score_final: total_flanker,
-        meanrt_final: meanrt(flanker_rows)
-      };
+    const flankerSummary = {
+      score_final: total_flanker,
+      meanrt_final: meanrt(flanker_rows)
+    };
 
-      const simonSummary = {
-        score_final: total_simon,
-        meanrt_final: meanrt(simon_rows)
-      };
+    const simonSummary = {
+      score_final: total_simon,
+      meanrt_final: meanrt(simon_rows)
+    };
 
-      if (
-        typeof window._postSquaredSummaryToParent === 'function'
-      ) {
-        window._postSquaredSummaryToParent(
-          stroopSummary,
-          flankerSummary,
-          simonSummary,
-          null
-        );
-      } else {
-        window.parent.postMessage(
-          {
-            type: 'squared_done',
-            stroopSummary,
-            flankerSummary,
-            simonSummary,
-            raw: null
-          },
-          window.location.origin
-        );
-      }
-
-      console.log('DEBUG(squared): completion sent to parent', {
+    if (typeof window._postSquaredSummaryToParent === 'function') {
+      window._postSquaredSummaryToParent(
         stroopSummary,
         flankerSummary,
-        simonSummary
-      });
-    } catch (error) {
-      console.error(
-        'DEBUG(squared): error while posting completion',
-        error
+        simonSummary,
+        null
       );
     }
   }
+}; // This is the only closing brace for the conclusion object
+
+
+// Preload image assets.
+var preload = {
+  type: jsPsychPreload,
+  images: [
+    al,
+    ar,
+    ml_fr,
+    mr_fl,
+    rarr,
+    larr
+  ]
 };
+
 
 // Start the embedded squared experiment.
 timeline.push(
@@ -1229,37 +1213,6 @@ console.log(
   'DEBUG(squared): starting embedded squared timeline',
   timeline.length,
   'timeline entries'
-);
-
-};
-
-// Preload the image assets used by the squared tasks.
-var preload = {
-  type: jsPsychPreload,
-  images: [
-    al,
-    ar,
-    ml_fr,
-    mr_fl,
-    rarr,
-    larr
-  ]
-};
-
-// Start the embedded squared experiment.
-timeline.push(
-  preload,
-  welcome,
-  stroop_task,
-  flanker_task,
-  simon_task,
-  conclusion
-);
-
-console.log(
-  "DEBUG(squared): starting embedded squared timeline",
-  timeline.length,
-  "timeline entries"
 );
 
 jsPsych.run(timeline);
