@@ -28,7 +28,8 @@
     .break-box { display:flex; gap:24px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-top:10px; }
     textarea#music, textarea#writing { width:100%; min-height:160px; font-size:16px; padding:12px; border:2px solid #ccc; border-radius:6px; resize:vertical; }
     .countdown { flex:0 0 220px; font-size:18px; border:2px solid #ccc; border-radius:6px; padding:12px; height:56px; display:flex; align-items:center; justify-content:center; background:#fff; }
-    iframe.squared-frame {display: block; width: 100%; height: 1100px; border: 0;background: #000;}
+    .squared-container {width: 100vw; max-width: none; margin-left: calc(50% - 50vw); padding: 0;}
+    iframe.squared-frame {display: block; width: 100vw; height: 100vh; min-height: 900px; border: 0; background: #000;}
   </style>
 </head>
 <body>
@@ -298,7 +299,7 @@ function makeRound4Trial(i){
 function getSquaredTimeline() {
   const trial = {
     type: jsPsychHtmlKeyboardResponse,
-    stimulus: `<div class="centered" style="padding:0;"><iframe id="squared-iframe" class="squared-frame" src="squared/squared.html" title="Squared task"></iframe></div>`,
+    stimulus: `<div class="squared-container"> <iframe id="squared-iframe" class="squared-frame" src="squared/squared.html" title="Squared task"> </iframe> </div> `,
     choices: "NO_KEYS",
     trial_duration: null,
     on_start: function() {
