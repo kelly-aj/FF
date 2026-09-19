@@ -22,20 +22,31 @@
 
   <link href="../jspsych/jspsych.css" rel="stylesheet" type="text/css">
 
-  <style>
+    <style>
     /*
-      Keep the original squared appearance:
-      black background and white jsPsych text.
+      Fill the iframe and allow jsPsych to use its full width.
     */
     html,
     body {
+      width: 100%;
       min-height: 100%;
       margin: 0;
       padding: 0;
     }
 
     #squared-root {
+      width: 100%;
       min-height: 100vh;
+    }
+
+    .jspsych-display-element {
+      width: 100% !important;
+      min-height: 100vh;
+    }
+
+    .jspsych-content {
+      width: 100% !important;
+      max-width: none !important;
     }
   </style>
 </head>
