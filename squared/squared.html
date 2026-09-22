@@ -23,32 +23,61 @@
   <link href="../jspsych/jspsych.css" rel="stylesheet" type="text/css">
 
     <style>
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #squared-root {
+    width: 100%;
+    height: 100%;
+  }
+
+  .jspsych-display-element {
+    width: 100% !important;
+    min-height: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .jspsych-content {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 100% !important;
+    box-sizing: border-box;
+    padding: 18px 24px !important;
+
     /*
-      Fill the iframe and allow jsPsych to use its full width.
+      Slightly shrink the original instruction screens so that
+      their fixed spacing and large text fit within the viewport.
     */
-    html,
-    body {
-      width: 100%;
-      min-height: 100%;
-      margin: 0;
-      padding: 0;
-    }
+    zoom: 0.88;
+  }
 
-    #squared-root {
-      width: 100%;
-      min-height: 100vh;
-    }
-
-    .jspsych-display-element {
-      width: 100% !important;
-      min-height: 100vh;
-    }
-
+  /*
+    Use a little more scaling on shorter laptop screens.
+  */
+  @media (max-height: 850px) {
     .jspsych-content {
-      width: 100% !important;
-      max-width: none !important;
+      zoom: 0.80;
+      padding-top: 10px !important;
+      padding-bottom: 10px !important;
     }
-  </style>
+  }
+
+  @media (max-height: 700px) {
+    .jspsych-content {
+      zoom: 0.72;
+      padding-top: 6px !important;
+      padding-bottom: 6px !important;
+    }
+  }
+</style>
 </head>
 
 <body>
