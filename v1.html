@@ -227,7 +227,8 @@ const breakScreen = {
 };
 
 /* Round 2 */
-const round2Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered"><p><strong>This is Round 2.</strong></p><p>Press space to begin.</p></div>`, choices: [' '] };
+const round2Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered">
+<p><strong>This is Round 2.</strong></p><p>Press space to begin.</p></div>`, choices: [' '] };
 
 function makeRound2Trial(i){
   const pair = imagePairs[i];
@@ -247,7 +248,10 @@ function makeRound2Trial(i){
 }
 
 /* Round 3 & 4 */
-const round3Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered"><p><strong>This is Round 3.</strong></p><p>Press space to begin.</p></div>`, choices: [' '] };
+const round3Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered">
+<p>We are now going to complete another round of the task involving the ancient scripts. </p>
+<p>As you did before, you will answer questions about a researcher- developed ancient scripy. Whether you get the answers right or wrong to these questions, try to learn. Round 2 will test how much you learned.  </p>
+<p>Press space to begin.</p></div>`, choices: [' '] };
 
 function makeRound3Trial(i){
   const pair = imagePairsRound3[i];
