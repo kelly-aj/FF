@@ -308,6 +308,23 @@ function makeRound4Trial(i){
   };
 }
 
+const squaredTransition = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `
+    <div class="centered" style="text-align:center;">
+      <h2>Next Task</h2>
+      <p>
+        You are about to begin a new set of tasks.
+      </p>
+      <p>
+        Please read the instructions carefully and follow the directions
+        on each screen.
+      </p>
+    </div>
+  `,
+  choices: ['Continue']
+};
+
 /**************** SQUARED IFRAME TRIAL ****************/
 function getSquaredTimeline() {
   const trial = {
@@ -383,6 +400,7 @@ timeline.push(intro1, intro2);
 for(let i=0;i<4;i++){ timeline.push(makeRound1Trial(i)); timeline.push(incorrectFeedback); }
 timeline.push(breakScreen, round2Intro);
 for(let i=0;i<4;i++){ timeline.push(makeRound2Trial(i)); }
+timeline.push(squaredTransition);
 timeline.push(...getSquaredTimeline());
 timeline.push(round3Intro);
 for(let i=0;i<4;i++){ timeline.push(makeRound3Trial(i)); timeline.push(positiveFeedback); }
