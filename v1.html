@@ -391,15 +391,6 @@ timeline.push(round4Intro);
 for(let i=0;i<4;i++){ timeline.push(makeRound4Trial(i)); }
 timeline.push(finalScreen);
 
-/* Debug trial */
-const debugTrial = {
-  type: jsPsychHtmlButtonResponse,
-  stimulus: `<div class="centered"><p style="font-size:20px;"><strong>DEBUG: jsPsych started</strong></p><p>If you see this, jsPsych is running.</p><p>Click Continue.</p></div>`,
-  choices: ['Continue'],
-  on_start: function(){ const t = document.getElementById('jspsych-target'); if (t && t.focus) { t.focus(); console.log('DEBUG: focused jspsych-target'); } },
-  on_finish: function(){ console.log('DEBUG: debugTrial finished'); }
-};
-timeline.unshift(debugTrial);
 
 console.log('DEBUG: running timeline (parent index.html)');
 jsPsych.run(timeline);
