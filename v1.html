@@ -228,7 +228,9 @@ const breakScreen = {
 
 /* Round 2 */
 const round2Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered">
-<p><strong>This is Round 2.</strong></p><p>Press space to begin.</p></div>`, choices: [' '] };
+<p><strong>This is Round 2.</strong></p>
+<p>Based on what you learned about the researcher-manufactured ancient script in Round 1, answer the next four questions by selecting the appropriate image.</p>
+<p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p> </div>`, choices: [' '] };
 
 function makeRound2Trial(i){
   const pair = imagePairs[i];
@@ -273,7 +275,9 @@ const break2Screen = {
   type: jsPsychHtmlButtonResponse,
   stimulus: `
     <div class="centered">
-      <p>Write briefly about a recent experience you enjoyed.</p>
+      <p>Let's take another short break.</p>
+      <p><strong>Please tell us about your favorite teacher. What did they do that make them so memorable?</strong></p>
+      <div class="break-box">
       <div class="break-box">
         <div style="flex:1;"><textarea id="writing" placeholder="Type here..."></textarea></div>
         <div class="countdown" id="countdown2">2:00</div>
@@ -289,7 +293,9 @@ const break2Screen = {
   on_finish: function(d){ if(this._interval) clearInterval(this._interval); const txt = document.getElementById('writing'); d.favorite_writing = txt ? txt.value : ''; }
 };
 
-const round4Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered"><p><strong>This is Round 4 (Recall).</strong></p><p>Press space to begin.</p></div>`, choices: [' '] };
+const round4Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered">
+<p>Based on what you learned about the researcher-manufactured ancient script in the previous round, answer the next four questions by selecting the appropriate image.</p>
+<p style="text-align:center;"><strong>Press space bar to begin answering the questions.</strong></p> </div>`, choices: [' '] };
 
 function makeRound4Trial(i){
   const pair = imagePairsRound3[i];
