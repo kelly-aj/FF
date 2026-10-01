@@ -46,7 +46,7 @@ console.log('Starting experiment script...');
 const VERSION = "v1";
 const ROUND2_CORRECT_RULE = "same";
 const BREAK_SECONDS = 120;
-const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_eEG4o0S1x2n2DFI";
+const QUALTRICS_RETURN_URL = "https://merceruniversity.co1.qualtrics.com/jfe/form/SV_8CIaZeQZ9YpLGvA";
 
 /**************** INIT ****************/
 window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
@@ -252,7 +252,7 @@ function makeRound2Trial(i){
 /* Round 3 & 4 */
 const round3Intro = { type: jsPsychHtmlKeyboardResponse, stimulus: `<div class="centered">
 <p>We are now going to complete another round of the task involving the ancient scripts. </p>
-<p>As you did before, you will answer questions about a researcher- developed ancient scripy. Whether you get the answers right or wrong to these questions, try to learn. Round 2 will test how much you learned.  </p>
+<p>As you did before, you will answer questions about a researcher- developed ancient scripy. Whether you get the answers right or wrong to these questions, try to learn. Round 2 will test how mu[...]
 <p>Press space to begin.</p></div>`, choices: [' '] };
 
 function makeRound3Trial(i){
@@ -288,7 +288,7 @@ const break2Screen = {
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown2'); let total = BREAK_SECONDS; el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
-    this._interval = setInterval(()=>{ total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`; if(total<=0){ clearInterval(this._interval); btn.disabled=false; } },1000);
+    this._interval = setInterval(()=>{ total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`; if(total<=0){ clearInterval(this._interval); btn.disabled = false; }},1000);
   },
   on_finish: function(d){ if(this._interval) clearInterval(this._interval); const txt = document.getElementById('writing'); d.favorite_writing = txt ? txt.value : ''; }
 };
