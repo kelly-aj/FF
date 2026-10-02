@@ -53,6 +53,13 @@ window.jsPsych = initJsPsych({ display_element: 'jspsych-target' });
 window._jsPsychInstance = window.jsPsych;
 jsPsych.data.addProperties({ version: VERSION });
 
+// Store squared task summaries globally
+window._squaredSummaries = {
+  stroop: null,
+  flanker: null,
+  simon: null
+};
+
 /**************** DYNAMIC CSS HELPERS (kept for completeness) ****************/
 function loadCSS(href){
   const link = document.createElement('link');
@@ -80,27 +87,17 @@ function buildSummaryPayload() {
 
   const sumCounts = arr => arr.map(d => Number(d.correct || 0)).reduce((a,b)=>a+b,0);
 
-  function getTaskSummary(taskName){
-    try {
-      const mainFilter = jsPsych.data.get().filter({ task: taskName, practice: 0, timeout: 0 });
-      const lastRow = mainFilter.last(1).values()[0] || {};
-      return {
-        score_final: lastRow.score_final || lastRow.score_after_trial || '',
-        meanrt_final: mainFilter.select('rt').mean() || ''
-      };
-    } catch (e) { return { score_final:'', meanrt_final: '' }; }
-  }
-
-  const stroop = getTaskSummary('stroop');
-  const flanker = getTaskSummary('flanker');
-  const simon = getTaskSummary('simon');
-
   const br = all.find(d => d.favorite_music !== undefined);
   const music_short = br ? (br.favorite_music || '').slice(0,150) : '';
   const br2 = all.find(d => d.favorite_writing !== undefined);
   const writing_short = br2 ? (br2.favorite_writing || '').slice(0,150) : '';
   const readingRow = all.find(d => d.reading_time !== undefined);
   const reading_time = readingRow ? readingRow.reading_time : '';
+
+  // Get squared task summaries from global storage
+  const stroop = window._squaredSummaries.stroop || { score_final: '', meanrt_final: '' };
+  const flanker = window._squaredSummaries.flanker || { score_final: '', meanrt_final: '' };
+  const simon = window._squaredSummaries.simon || { score_final: '', meanrt_final: '' };
 
   return {
     r1_choices, r2_choices, r3_choices, r4_choices,
@@ -336,12 +333,9 @@ function getSquaredTimeline() {
       console.log('DEBUG: squared iframe trial started; waiting for postMessage from iframe');
 
       function onMessage(e) {
-        // Accept same-origin messages; during local testing many dev setups use same-origin.
         try {
           if (e.origin !== window.location.origin) {
             console.warn('Message from unexpected origin:', e.origin);
-            // allow for local testing; do not return here when using local dev server on same origin
-            // return;
           }
         } catch (err) {
           console.warn('Origin check failed (continuing for local test):', err);
@@ -351,15 +345,14 @@ function getSquaredTimeline() {
         if (!msg || msg.type !== 'squared_done') return;
         console.log('DEBUG: received squared_done message from iframe', msg);
 
-        const payload = {
-          task: 'squared',
-          stroop_summary: msg.stroopSummary || {},
-          flanker_summary: msg.flankerSummary || {},
-          simon_summary: msg.simonSummary || {},
-          raw: msg.raw || null
-        };
+        // Store summaries in global storage for retrieval later
+        window._squaredSummaries.stroop = msg.stroopSummary || { score_final: '', meanrt_final: '' };
+        window._squaredSummaries.flanker = msg.flankerSummary || { score_final: '', meanrt_final: '' };
+        window._squaredSummaries.simon = msg.simonSummary || { score_final: '', meanrt_final: '' };
 
-        jsPsych.finishTrial(payload);
+        console.log('DEBUG: stored squared summaries:', window._squaredSummaries);
+
+        jsPsych.finishTrial();
         window.removeEventListener('message', onMessage);
       }
 
