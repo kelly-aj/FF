@@ -30,17 +30,26 @@
     .countdown { flex:0 0 220px; font-size:18px; border:2px solid #ccc; border-radius:6px; padding:12px; height:56px; display:flex; align-items:center; justify-content:center; background:#fff; }
     .squared-container {width: 100vw; max-width: none; margin-left: calc(50% - 50vw); padding: 0; overflow: hidden;}
     iframe.squared-frame {display: block; width: 100vw; height: 100vh; min-height: 0; border: 0; background: #000;}
+    #debug-log { position: fixed; bottom: 10px; right: 10px; background: #000; color: #0f0; padding: 10px; font-size: 11px; max-height: 200px; overflow-y: auto; max-width: 400px; font-family: monospace; z-index: 9999; }
   </style>
 </head>
 <body>
   <div id="jspsych-target" tabindex="0"></div>
+  <div id="debug-log"></div>
 
 <script>
-// Global error handlers
-window.addEventListener('error', e => console.error('GLOBAL ERROR:', e.message, e.filename + ':' + e.lineno));
-window.addEventListener('unhandledrejection', e => console.error('UNHANDLED PROMISE REJECTION:', e.reason));
+// Debug logging
+const debugLog = (msg) => {
+  console.log(msg);
+  const el = document.getElementById('debug-log');
+  if (el) el.innerHTML += msg + '<br>';
+};
 
-console.log('Starting experiment script...');
+// Global error handlers
+window.addEventListener('error', e => debugLog('GLOBAL ERROR: ' + e.message));
+window.addEventListener('unhandledrejection', e => debugLog('UNHANDLED REJECTION: ' + e.reason));
+
+debugLog('Starting experiment script...');
 
 /**************** CONFIG ****************/
 const VERSION = "v1";
@@ -99,7 +108,9 @@ function buildSummaryPayload() {
   const flanker = window._squaredSummaries.flanker || { score_final: '', meanrt_final: '' };
   const simon = window._squaredSummaries.simon || { score_final: '', meanrt_final: '' };
 
-  return {
+  debugLog('Squared Summaries: stroop=' + JSON.stringify(stroop) + ', flanker=' + JSON.stringify(flanker) + ', simon=' + JSON.stringify(simon));
+
+  const payload = {
     r1_choices, r2_choices, r3_choices, r4_choices,
     r2_correct: r2.map(d => d.correct || 0).join(','), r2_total: String(sumCounts(r2)),
     r3_correct: r3.map(d => d.correct || 0).join(','), r3_total: String(sumCounts(r3)),
@@ -110,6 +121,9 @@ function buildSummaryPayload() {
     flanker_score: String(flanker.score_final || ''), flanker_meanrt: String(flanker.meanrt_final || ''),
     simon_score: String(simon.score_final || ''), simon_meanrt: String(simon.meanrt_final || '')
   };
+
+  debugLog('Final Payload: ' + JSON.stringify(payload));
+  return payload;
 }
 
 /**************** CORE TASK UI ****************/
@@ -285,7 +299,7 @@ const break2Screen = {
   on_load: function(){
     const btn = document.querySelector('.jspsych-html-button-response-button button');
     const el = document.getElementById('countdown2'); let total = BREAK_SECONDS; el.textContent = `${Math.floor(total/60)}:${String(total%60).padStart(2,'0')}`;
-    this._interval = setInterval(()=>{ total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`; if(total<=0){ clearInterval(this._interval); btn.disabled = false; }},1000);
+    this._interval = setInterval(()=>{ total--; el.textContent = `${Math.floor(Math.max(total,0)/60)}:${String(Math.max(total,0)%60).padStart(2,'0')}`; if(total<=0){ clearInterval(this._interval)[...]
   },
   on_finish: function(d){ if(this._interval) clearInterval(this._interval); const txt = document.getElementById('writing'); d.favorite_writing = txt ? txt.value : ''; }
 };
@@ -301,7 +315,7 @@ function makeRound4Trial(i){
     stimulus: `<div class="centered"><div class="question-title">${round4Questions[i]}</div></div>`,
     choices: [imgChoice(pair.A,"A"), imgChoice(pair.B,"B")],
     data: { round: 4 },
-    on_finish: function(d){ const c = (d.response===0) ? "A" : "B"; d.choice_label = c; d.chosen_image = (d.response===0) ? pair.A : pair.B; d.correct = (c === round3Choices[i]) ? 1 : 0; d.round3_choice_for_pair = round3Choices[i]; }
+    on_finish: function(d){ const c = (d.response===0) ? "A" : "B"; d.choice_label = c; d.chosen_image = (d.response===0) ? pair.A : pair.B; d.correct = (c === round3Choices[i]) ? 1 : 0; d.round3[...]
   };
 }
 
@@ -330,27 +344,33 @@ function getSquaredTimeline() {
     choices: "NO_KEYS",
     trial_duration: null,
     on_start: function() {
-      console.log('DEBUG: squared iframe trial started; waiting for postMessage from iframe');
+      debugLog('squared iframe trial started; waiting for postMessage from iframe');
 
       function onMessage(e) {
+        debugLog('Message received from origin: ' + e.origin);
+        
         try {
           if (e.origin !== window.location.origin) {
-            console.warn('Message from unexpected origin:', e.origin);
+            debugLog('Origin mismatch: ' + e.origin + ' vs ' + window.location.origin);
           }
         } catch (err) {
-          console.warn('Origin check failed (continuing for local test):', err);
+          debugLog('Origin check failed: ' + err);
         }
 
         const msg = e.data;
-        if (!msg || msg.type !== 'squared_done') return;
-        console.log('DEBUG: received squared_done message from iframe', msg);
+        if (!msg || msg.type !== 'squared_done') {
+          debugLog('Message is not squared_done: ' + JSON.stringify(msg));
+          return;
+        }
+        
+        debugLog('squared_done message received: ' + JSON.stringify(msg));
 
         // Store summaries in global storage for retrieval later
         window._squaredSummaries.stroop = msg.stroopSummary || { score_final: '', meanrt_final: '' };
         window._squaredSummaries.flanker = msg.flankerSummary || { score_final: '', meanrt_final: '' };
         window._squaredSummaries.simon = msg.simonSummary || { score_final: '', meanrt_final: '' };
 
-        console.log('DEBUG: stored squared summaries:', window._squaredSummaries);
+        debugLog('Stored squared summaries: ' + JSON.stringify(window._squaredSummaries));
 
         jsPsych.finishTrial();
         window.removeEventListener('message', onMessage);
@@ -383,7 +403,9 @@ const finalScreen = {
       version: VERSION,
       ...payload
     });
-    window.location.href = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+    const finalUrl = `${QUALTRICS_RETURN_URL}?${q.toString()}`;
+    debugLog('Final URL: ' + finalUrl);
+    window.location.href = finalUrl;
   }
 };
 
@@ -403,7 +425,7 @@ for(let i=0;i<4;i++){ timeline.push(makeRound4Trial(i)); }
 timeline.push(finalScreen);
 
 
-console.log('DEBUG: running timeline (parent index.html)');
+debugLog('Timeline built, starting experiment');
 jsPsych.run(timeline);
 </script>
 </body>
