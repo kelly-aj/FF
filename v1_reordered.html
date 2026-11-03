@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>LFF Task — v1 reordered rounds</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <p>Loading reordered v1…</p>
+  <script>
+    (async function () {
+      const response = await fetch('v1.html' + window.location.search);
+      if (!response.ok) throw new Error('Could not load v1.html');
+      let source = await response.text();
+      const timelinePattern = /const timeline = \[\];[\s\S]*?jsPsych\.run\(timeline\);/;
+      const reorderedTimeline = `const timeline = [];
+      timeline.push(intro1, intro2);
+
+      // Rounds 3 and 4 come first.
+      timeline.push(round3Intro);
+      for(let i=0;i<4;i++){ timeline.push(makeRound3Trial(i)); timeline.push(positiveFeedback); }
+      timeline.push(break2Screen, round4Intro);
+      for(let i=0;i<4;i++){ timeline.push(makeRound4Trial(i)); }
+
+      // Complete the squared tasks, then take the break before Rounds 1 and 2.
+      timeline.push(squaredTransition);
+      timeline.push(...getSquaredTimeline());
+      timeline.push(breakScreen);
+
+      for(let i=0;i<4;i++){ timeline.push(makeRound1Trial(i)); timeline.push(incorrectFeedback); }
+      timeline.push(round2Intro);
+      for(let i=0;i<4;i++){ timeline.push(makeRound2Trial(i)); }
+      timeline.push(finalScreen);
+
+      console.log('DEBUG: running reordered v1 timeline');
+      jsPsych.run(timeline);`;
+
+      if (!timelinePattern.test(source)) throw new Error('Could not find v1 timeline to reorder');
+      source = source.replace(timelinePattern, reorderedTimeline);
+      document.open();
+      document.write(source);
+      document.close();
+    })().catch(error => {
+      document.body.textContent = 'Unable to load the reordered task: ' + error.message;
+      console.error(error);
+    });
+  </script>
+</body>
+</html>
